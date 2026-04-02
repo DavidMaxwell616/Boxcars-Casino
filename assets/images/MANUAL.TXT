@@ -1,0 +1,813 @@
+Boxcars Casino For Windows
+Version 1.0c
+by Jeff T. Rodeo and Russ Beall
+
+Boxcars Casino is a registered trademark of Jeff T. Rodeo.
+Program and documentation (C) Copyright 1995 Jeff T. Rodeo.  All rights
+reserved.  Microsoft Windows is a registered trademark of Microsoft, Inc.
+
+
+Table of Contents
+
+     Welcome
+     The Magic of Shareware
+     Installation
+     The Bank
+     Selecting a Game
+     General Controls
+     Craps
+     Poker
+     Slots
+     Blackjack
+     Roulette
+     Baccarat
+     Keno
+     Disclaimer
+
+
+* WELCOME *
+
+Congratulations on your purchase of Boxcars Casino(TM).  You are now the
+owner of one of the finest gambling simulations available for any computer.
+Boxcars Casino features attractive graphics, realistic animation and sound
+effects, and implementation of common casino gaming rules.  With this
+program, you can become familiar with how casino games are typically
+played, before risking any money in an actual casino.  For advanced
+blackjack players, Boxcars Casino has user-definable training features for
+basic strategy and card counting.  Although no specific strategies or card
+counting systems are included in this program, many are readily available
+in books on playing blackjack, and can be easily used with this program's
+training functions.
+
+
+* THE MAGIC OF SHAREWARE *
+
+This product is shareware.  This means that you may create as many copies
+as you want, for whomever you want, provided that you do not alter the
+program or manual and that you distribute only the full package (all
+program and manual files).  (Read disclaimer at the end of this manual.)
+
+However, the author still retains full copyrights.  Permission to make and
+possess copies is granted on the condition that if after trying the program
+for 30 minutes you decide to keep it for your own use, you will send in the
+shareware fee.  The fee is not a donation--it is a license fee to use this
+software program.
+
+By avoiding the huge retail markup and distribution/packaging costs,
+shareware can turn a profit for the author at a very low price to the end-
+user.  The danger, of course, is that the users will just rip off the
+authors by not paying for the software.
+
+                          --->> ONLY $9.50 <<---
+
+Send check, payable to Jeff T. Rodeo, to:
+
+Boxcars - Windows
+P.O. Box 472
+Seabrook, TX 77586
+
+Write your e-mail address on the check, if you have Internet access.
+
+By sending in the shareware fee, you will not only be rewarding the authors
+of this program for many months of effort, but you will also encourage
+software authors worldwide to write more quality, inexpensive shareware, by
+demonstrating to them that the concept can work.  Please do not abuse our
+trust by violating our copyright--show us that our faith in the user's
+integrity was not ill-placed.  Thank you.
+
+* A Macintosh version of this program is also available.
+* Texas residents:  Do not add sales tax--it is included in your shareware
+fee.
+* Questions/problems/requests?  Contact us on the Internet:
+JeffTRodeo@aol.com
+(Be sure to tell us what computer system you're using.)
+
+
+* INSTALLATION *
+ 
+System Requirements
+
+Boxcars Casino requires Microsoft Windows 3.1 or later, running on a
+computer with enough processing power and hard disk space to adequately
+support Windows 3.1.
+
+Animation
+
+On a slower computer, some choppiness of animation is to be expected.  The
+speed with which objects move will be the same on any computer, but faster
+computers will exhibit smoother motion.  (Note:  Choppy animation on a
+slower computer does *not* affect game outcome.)
+
+
+* THE BANK *
+
+When you first run Boxcars Casino, you will need to go to the bank and set
+up an account there, with which to gamble.  To enter the bank, click the
+Bank button from the game selection screen.
+
+To create a new player, click the "New Gambler" button, and fill out the
+dialog box which appears.  You can have up to ten different accounts on
+your computer.  Each player has a "fund" (amount of money being held in the
+bank for later withdrawal) and a "stake" (amount of money being carried
+about from game to game, immediately ready to gamble).
+
+After creating a player, transfer a portion of his fund to his stake, by
+clicking the "Change Stake" button.  Then click the "Return To Games"
+button to leave the bank and return to the games.  The game selection
+window will show the stake and name of the currently active player (which
+will be the one last selected before leaving the bank).
+
+Selecting a Game
+
+You are now ready to play.  Select a game by pressing the button
+corresponding to that game.  If a game button is dimmed, it means your
+stake is not large enough to make even one wager in that game.  For
+example, if you had a $15 stake, you could play roulette or blackjack, but
+not baccarat, which requires a minimum $20 bet.
+
+Note that upon entering some games, the money in front of you on the table
+may be somewhat less than your stake.  This means that the game at which
+you are playing does not deal with money in small enough denominations to
+exactly reflect your stake, or there is a limit as to how much money you
+can carry to this game.  The difference is not lost; it will be returned to
+your stake when you leave the game.
+
+
+General Controls
+
+Chips
+ 
+In table games that use chips, the chips may be freely moved about by
+clicking and dragging them with the mouse.  Moving a chip also moves any
+chips that are stacked on top of it.  To split a pile of chips, simply grab
+the lowest of the chips you want to move, and all chips on top will come
+with it.
+
+To make change for a high-denomination chip, first make sure it is separate
+from other chips (not stacked), then shift-click it (click while holding
+the shift key).  The chip will be replaced by an equal-value pile of lower
+denomination chips.
+
+Shift-clicking a pile of chips will condense the pile to the smallest
+number of chips that can represent the exact value of that pile, and sort
+the chips with lower-value chips on top.  If a pile of chips is already
+condensed, shift-clicking it will explode it into as many chips as can fit
+in a stack.  Sometimes, this is an easier way of getting a lot of change
+fast, rather than breaking up chips one at a time.
+
+Options Menu
+
+The Options menu may be used for turning sound off and on.  Sound may also
+be directed to either a sound card or the PC's internal speaker.
+
+Game speed may also be adjusted.  The middle speed ("Play Normally")
+represents the most realistic speed.  Note that the game speed setting may
+affect different games in different ways.  Game speeds are remembered
+separately for each casino game, and will be retained in the preferences
+file when you quit the program.
+
+
+* CRAPS *
+ 
+The craps betting layout represents the many different types of wager that
+can be placed on the outcome of throwing two six-sided dice and adding
+their numbers.  To make a craps bet, place chips onto the desired areas of
+the layout.  Then click the "Shoot" button to shoot the dice.  Losing bets
+will be automatically removed, and winning bets will receive payoffs.
+
+"Pass" and the "Point"
+
+In craps, rolls of the dice are grouped into one or more rolls, which
+together make either a "pass" or a failure to "pass," depending on what
+numbers were rolled.
+
+The first roll of the dice will result in an immediate resolution, if the
+dice total any of the following numbers:
+
+     7 or 11        Pass
+
+     2, 3 or 12     Did not pass
+
+If any other number is rolled on the first roll (4, 5, 6, 8, 9 or 10), that
+number becomes the "point," and is indicated on the betting layout by the
+placement of a puck.  The dice are now rolled repeatedly until one of the
+following occurs:
+
+     Point is rerolled     Pass
+
+     7 is rolled           Did not pass
+
+Then the puck is removed and the first roll begins again.
+
+Craps Bets
+
+Except where otherwise noted, bets pay the amount wagered.
+
+Pass
+"Pass," the most common type of craps bet, is a wager that the following
+set of one or more rolls will result in a successful "pass" (as described
+above).  If a point is established on the first roll, your chips are frozen
+on the layout until the bet is resolved.
+
+You may place a bet on pass after a point has been established, but it is
+seriously disadvantageous to do so, as this bet pays off only 1 to 1.
+
+Don't Pass
+This bet is essentially the opposite of "pass."  In other words, whenever a
+"pass" bet would have lost, the "don't pass" bet wins.  The exception is
+when a 12 is rolled on the first roll, in which case the bet is a "push"
+(tie).
+
+Come
+The "come" bet is exactly like "pass," except that it is made out-of-sync
+with "pass."  For example, suppose you bet on "pass" and rolled an 8.
+Before the next roll of the dice, you could make a different bet on "come."
+Then if the next roll came up 7, you would lose your "pass" bet, but win
+your "come" bet.
+
+If a "come" bet rolls a point number, the chips will be automatically moved
+to the near side of the appropriate point number on the layout, and must
+remain there until the bet is resolved.  If the point number is rolled, the
+bet will be moved back to the "come" area, and paid off there.
+
+Don't Come
+Just like "don't pass," only placed out-of-sync with it.  When a point
+number is rolled, this bet is moved to the far side of the corresponding
+point number on the layout.
+
+Big 6
+A bet that a 6 will come up before a 7 does.  This is just like having a
+"point" of 6.  This bet may be removed before any roll.
+
+Big 8
+Same as "big 6."
+
+Field Numbers
+A bet that the next single roll will not be 5, 6, 7 or 8.  Note that 2 pays
+double and 12 pays triple the amount bet.
+
+Double Odds
+Whenever a point is established for either a "pass" or "come" bet, you may
+place a bet of up to twice your original bet on that point number.  This
+bet pays off according to the true odds of that number showing before a
+seven.
+
+     Point     Payoff
+       4       2 to 1
+       5       3 to 2
+       6       6 to 5
+       8       6 to 5
+       9       3 to 2
+      10       2 to 1
+
+To make this bet, place a stack of chips just outside the "pass" area,
+close to your original bet.  To place an odds bet on a "come" point, place
+your odds bet beside the come bet in the point area.
+
+Proposition Bets
+These bets are found in the middle of the craps table, and may be placed or
+removed before any roll of the dice.  Payoffs are printed on the betting
+layout.
+
+     Seven         Bet that 7 will come up on the next roll
+
+     Any Craps     Bet that the next roll will be 2, 3 or 12
+
+     Hard Ways     (Signified by yellow die pictures.)  Bets that a number
+                   will be rolled with a certain combination of the two
+                   dice, before a 7 appears or the number is rolled any
+                   other way
+
+     One-Rolls     (Signified by red die pictures.)  Bets that a certain
+                   number will come up on the very next roll
+
+Place Bets
+At any time, you may "place" a bet on a point number.  To request a place
+bet, put a pile of chips in the "place" square in the lower-left corner of
+the window, and you will be asked on which point you would like to bet.
+The bet will then be moved there automatically.  You must make place bets
+in this manner--you cannot place them manually yourself.  However, once
+placed, a place bet may be increased or decreased by hand.
+
+This bet is pretty much exactly like the "odds" bet, except that you do not
+have to make a "pass" or "come" bet first, and the payoff chart is
+different:
+
+     Point     Payoff
+       4       9 to 5
+       5       7 to 5
+       6       7 to 6
+       8       7 to 6
+       9       7 to 5
+      10       9 to 5
+
+In craps, as in other casino games, you should try to make bets that can be
+paid off correctly according to the odds.  If necessary, your payoff will
+be rounded down to the nearest value that can be expressed with the
+available chip values.
+
+
+* POKER *
+
+In Boxcars Casino poker, you play against three or five computer-controlled
+players.  When you start a game of poker, each computer player will have
+his own unique characteristics of play, and all computer-player decisions
+will be made without knowledge of the concealed cards in any other player's
+hand.  The players do not conspire or communicate with each other in any
+way.
+
+The deal rotates, with the dealer selecting what variation of poker is to
+be played.  Four varieties are available:  Five-Card Draw, Five-Card Stud,
+Seven-Card Stud, and Hold 'Em.
+
+For players already familiar with poker, the rest is self-explanatory.  For
+all others, a brief synopsis of poker rules follows:
+
+Five-Card Draw
+
+Ante
+Each player must contributed a specified amount of money, called the
+"ante," to a pile in the middle of the table, called a "pot."  The pot will
+be won by the player who holds the best "hand" (set of five cards).
+
+Deal
+Each player is dealt five cards, which he may look at privately.  The order
+of the cards is not important in poker.
+
+Betting Round
+After the deal, there is a betting round, in which each player in turn has
+a chance to raise the stakes by contributing money to the pot.  When it's
+your turn to bet, you must contribute at least enough to match the amount
+any other player has contributed so far, or "fold" (permanently quit this
+round, forfeiting your chance to win the pot).  Betting may continue
+several times around the table.
+
+The betting round is over when all players have had at least one chance to
+bet, and the amount contributed by all players is equal.  (If only one
+player remains, he immediately wins the pot, there is no draw, and he does
+not show his cards to anyone.)
+
+Draw
+Next comes the draw, in which each player gets to discard any number of his
+cards, and replace them with new ones from the deck.
+
+Final Betting Round
+After the draw, there is a final betting round.  If more than one player
+remains after this betting round, they must show their cards, and the best
+hand takes the pot.
+
+Five-Card Stud
+
+In this game, there is no ante, and no drawing decisions.  Each player is
+dealt one face-down (privately-viewed) card, and four face-up cards.  There
+is a betting round after each face-up card is dealt (four betting rounds in
+all).  Each betting round is led by the player with highest visible hand
+(down-cards not included).  And the leader of the first betting round must
+bet, to start the pot.
+
+Seven-Card Stud
+
+This is like Five-Card Stud, except that you receive seven cards in all;
+two face-down cards at the start, then four face-up cards, and finally one
+face-down card.  There are five betting rounds; one after each of your last
+five cards.  Your hand counts as the best poker hand that can be made from
+any five cards of the seven cards you hold.
+
+Hold 'Em
+
+In this game, each player receives two privately-viewed cards, and five
+cards are dealt face-down to the center of the table.  After the first
+betting round, three of the center cards are turned face-up, and there is
+another betting round.  Then, each of the two remaining center cards are
+turned up, with a betting round after each.  Each player's hand is the best
+five-card hand he can make from the two cards in his hand and the five
+cards in the center.
+
+Hands
+
+Poker hands are as follows, from least valuable to most:
+
+Pair:  Two cards of the same rank.
+
+Two Pair:  Two sets of two cards of the same rank.
+
+Three of a Kind:  Three cards of the same rank.
+
+Straight:  Five cards that can form a consecutive sequence of ascending
+rank.  For the purposes of a straight, the Ace can count as either just
+below a 2, or just above a King.  (Note:  A straight of Ace, 2, 3, 4 and 5
+has a high card of 5, not Ace.)
+
+Flush:  Five cards of the same suit.
+
+Full House:  Three of a kind, plus a pair.
+
+Four of a Kind:  Four cards of the same rank.
+
+Straight Flush:  A straight and a flush in the same five cards.
+
+Five of a Kind:  Five cards of the same rank (possible only with wild cards
+in play).
+
+Wild Cards
+
+When announcing what variation of poker is to be played, the dealing player
+may also announce that certain cards will be "wild;" for example, "all
+threes are wild."  A card that has been declared wild may be considered to
+be any rank of any suit, at the discretion of the player who holds it.
+
+
+* SLOTS *
+
+The Boxcars Casino features two three-reel slot machines.
+
+Regular Machine
+
+The "regular" slot machine features payoffs of up to one hundred times the
+amount wagered.  One, two or three coins may be wagered in one spin of the
+reels.  Red L.E.D.s above the selector buttons indicate the most recently
+wagered amount.
+
+This machine is set to have a payback rate of approximately 97.6%, which
+means that, over the long run, you can expect to lose about 2.4 cents for
+every dollar wagered.  In the short run, of course, anything can happen.
+
+Progressive Machine
+
+This machine features a "progressive" jackpot, which increases 25 cents for
+every dollar played.  This machine is linked with other machines in the
+casino, so that the jackpot increases by the play of other players, even
+when you are not inserting money into your machine.
+
+You may play one, two or three coins, but each coin is assigned to a
+different row.  Only the third row is eligible to win the progressive
+jackpot--rows 1 and 2 win a maximum of 1000 coins.
+
+The progressive slot has a payback rate of 99.2%--however, this does take
+into account that you may win the jackpot.  In the short run (without
+winning the jackpot) the payback rate is considerably lower, since 25 cents
+of every dollar played goes to the jackpot.
+
+
+* BLACKJACK *
+
+Blackjack is the one casino game that offers some hope of obtaining a
+statistical edge against the house.  With proper play strategy (acceptable
+at all casinos) the house edge can be reduced to almost nothing; smaller
+than at any other casino game.  With card counting (not accepted by
+casinos, but frequently done anyway), the player can obtain a distinct
+advantage.
+
+To play Boxcars Casino blackjack, place chips in the white betting square.
+After a few seconds of not moving chips, play will begin automatically.
+(If you are impatient, just click in the area where the cards appear on the
+right, and dealing will begin promptly.)
+
+You will be dealt two cards face-up, and the dealer will receive one face-
+up and one face-down.  The object is to come closer to a total hand value
+of 21 than the dealer, without going over 21.  (Hands of identical value
+result in no winner--a "push.")
+
+For purposes of totaling your hand, face cards count as 10 each, and each
+Ace counts as either 1 or 11, whichever is to your advantage at any
+particular moment.
+
+Hitting:  If you think your hand might be improved by an extra card, you
+may "hit" by clicking on your top card.  You may hit as many times as you
+wish.  If your hand goes over 21, it is worthless ("busted") and you
+immediately lose your bet.
+
+Standing:  If you wish to leave your hand the way it is, you may "stand" by
+clicking the Stand button.  The dealer will then expose his down card and
+attempt to improve his hand.  He must hit until his hand totals 17 or
+better, regardless of your hand.
+
+Two examples:
+* If you stand on a 13, and the dealer shows 16, he must hit and take the
+chance of busting, even though his 16 is already better than your 13.
+* If you stand on an 18 and the dealer shows 17, he must stand, even though
+he would have nothing to lose by trying to beat your 18.
+
+Blackjack:  Getting 21 on your first two cards is a "blackjack," and beats
+any other hand, even a 21 in more than two cards.  (This is the only case
+in which the number of cards affects the value of a hand.)  If you get a
+blackjack, you immediately win, unless the dealer has one too (a push).
+Furthermore, you win at a rate of 3 to 2, instead of the usual 1 to 1
+payoff.
+
+Doubling Down:  While your hand still consists of two cards, you may choose
+to "double down," which means that you double your bet on this hand and
+receive exactly one more card on that hand.  To double down, place in the
+betting square chips which match the amount of your original bet.
+
+Splitting:  If your hand consists of only two cards which are the same rank
+or value, you may split them into two separate hands, receiving an extra
+card for each.  Each hand will then be played separately, and could even be
+split again.  To split, place in the betting square chips which match the
+amount of your original bet.  You will then be asked whether you want to
+split your hand, or double down (as described above).  Note:  Split aces
+receive only one card each, and cannot be played further.  And a two card
+hand of 21 that results from a split is not a blackjack.
+
+Insurance:  If, right after the deal, the dealer shows an ace, you will be
+prompted "Insurance?" and may then place a bet (only one pile of chips, of
+up to half your original bet) on the Insurance bar near the top of the
+layout.  This is a bet that the dealer does have a blackjack.  If he does,
+your insurance bet pays off at 2 to 1; otherwise, the insurance bet is
+collected.  If you do not want insurance, click the "No" button.
+
+The dealer will then check to see if he has a blackjack.  If so, he will
+turn it up and the hand is over.  Otherwise, play will continue normally.
+This blackjack check also takes place when the dealer shows a card with a
+value of 10, but no insurance is offered then.
+
+For a more thorough guide to blackjack rule variations and advanced
+strategies, the authors recommend "The World's Greatest Blackjack Book,
+Revised Edition," by Humble and Cooper, published by Doubleday.
+
+Strategy Training
+
+Boxcars Casino includes a training feature for blackjack basic strategy,
+available from the Options menu when playing blackjack.  A basic strategy
+is a table which covers every possible combination of what hand you hold
+and what card the dealer shows.  This table tells you exactly what move to
+make for that situation.  Just by using a good basic strategy, you can cut
+the house advantage to nearly zero.
+
+When in strategy training mode, the program will force you to follow the
+strategy, stopping you and correcting you when you try to make the wrong
+move, and displaying the appropriate row of the strategy table after an
+incorrect move.
+
+Boxcars Casino includes no strategy tables; you must enter the strategy of
+your choice and save it as a strategy file.
+
+Selecting "Blackjack Strategy..." from the Options menu reveals the
+strategy dialog box.  The numbers across the top of the table (from "2O to
+"A") represent the dealer's up-card.  The numbers down the side represent
+your hand.  Since the word "PAIR" appears in the corner of the table, the
+displayed list is a list of possible pairs you could be holding, from "2 2"
+to "A A."  Click on the word "PAIR" to cycle among three different lists:
+
+     PAIR     Your hand is a splittable pair
+     ACE      Your hand contains an ace counting as eleven
+     SUM      Your hand is neither of the above
+
+To create a strategy, select one of the five tools in the lower-left corner
+and draw with it in the table.  The tools are abbreviated thusly:
+     S      Stand
+     H      Hit
+     D      Double down
+     SP     Split
+
+The five buttons in the upper-left corner perform functions as follows:
+
+     Clear     Clear out all three tables to gray.
+     Open      Load a strategy (three tables) from disk.
+     Save      Save the current tables to a strategy file.
+
+To exit the strategy dialog, click "Use" or "Don't Use," depending on
+whether you want to use the current strategy tables for training, or just
+play normally without training.  Note:  You cannot click "Use" if there are
+any gray squares in the strategy; it must be complete to be used for
+training.
+
+Count Training
+
+Boxcars Casino also includes a card-counting trainer.  A card counting
+system involves keeping track of a number in your head, which must be
+raised or lowered according to the rank of each card dealt to anyone at the
+table.  Exactly how each of the ten different ranks of card in blackjack
+affect the number (the "count") defines the counting system being used.
+
+As with basic strategy, you must enter the details of a counting system in
+order to use it in Boxcars Casino.  When count training is on, the program
+will prompt you after each hand for the latest count, and correct you if
+you are wrong.
+
+The "Adjusters" column contains the number that is to be added to the
+running count for every card in the game, depending on its value (2 through
+A).  Click the arrow buttons to adjust these values.  Typically, the
+adjusters will be small positive or negative values, such as 1 or -1.
+
+The "Start Count" box contains the value at which you begin your count,
+when joining the game or when the cards are reshuffled.  For virtually all
+count systems, this value will be zero.
+
+The five buttons in the lower-right corner perform functions as follows:
+
+     Clear     Clear all current values to zero.
+     Open      Load a count system from disk.
+     Save      Save the values to a count system file.
+
+To exit the card counting dialog, click "Use" or "Don't Use," depending on
+whether you want to use the current count system for training, or just play
+normally without card count training.
+
+
+* ROULETTE *
+
+In roulette, the object is to predict where a ball will land on a spinning
+platter lined with the numbers 1 through 36, 0 and 00.  Place chips on the
+appropriate areas of the betting layout and click the Spin button to
+release the ball.  Losing bets will be collected, and winning bets paid
+off.
+
+In addition to the obviously marked betting areas, the following types of
+bet can be made:
+
+Two-number pair:  Place chip on the white line between two numbers (in the
+range 1 through 36).  Pays off 17 to 1.
+
+Three-number row:  Place chip on the white line in front of a three-number
+row.  Pays off 11 to 1.
+
+Four-number square:  Place chip on the intersection of the white lines
+separate four adjacent numbers (in the range 1 through 36).  Pays off 8 to
+1.
+
+Six-number block:  Place chip as in three-number row bet, only between two
+rows.  This covers six numbers (two three-number rows) and pays off 5 to 1.
+
+Five-number block:  Place chip as in six-number block bet, only using 0 and
+00 as one of the two rows.  Pays off 6 to 1.
+ 
+You can skip rapidly through the roulette-wheel animation sequence by
+clicking the mouse.
+
+
+* BACCARAT *
+
+Baccarat is an expensive game (typical minimum:  $20 bet) that requires no
+skill whatever and has a small house edge.
+
+To bet, place chips in either the "Player" area in front of your white
+square, or the "Bank" area beyond it.  Bank bets have the better chance of
+winning, but bank bet winnings are subject to a 5% commission, which will
+be collected whenever the cards are shuffled, or when you leave the game.
+
+When the words "a card for the player" or "a card for the banker" appear,
+click the Deal button to deal a card.  If you have a bet on player, you
+will have the privilege of turning up the two player cards (by clicking on
+them).
+
+Two hands of two cards each are dealt; one for "player" and one for "bank."
+Each hand may draw a third card, and then the higher hand wins, with the
+value of a hand being calculated as in blackjack (see section on
+blackjack), but with no busting, and with only the least significant digit
+of the total being counted.  For example, cards that would total 17 in
+blackjack count as 7 in baccarat.  Cards that would total 24 in blackjack
+(a busted hand) would count as 4 in baccarat.  The total of each hand will
+be calculated automatically and displayed beside that hand.
+
+A two-card baccarat hand which totals 8 or 9 is called a "natural," and
+cannot be beaten by any 3-card hand (just as a "blackjack" cannot be beaten
+by any other 21 in the game of blackjack).  If either hand is a natural,
+drawing of third cards would be pointless, and does not take place.
+
+If there are no naturals, third card drawing (player first, then bank)
+takes place according to a curious set of rules:
+
+Player Drawing
+* Player draws if it has less than 6.
+
+Bank Drawing
+Bank drawing often depends on the value of the player's third card, if the
+player drew one.
+* If player drew a 0 (ten-value card) or 1 (Ace) or 9, bank draws if it has
+less than 4.
+* If player drew a 2 or 3, bank draws if it has less than 5.
+* If player drew a 4 or 5 or did not draw, bank draws if it has less than
+6.
+* If player drew a 6 or 7, bank draws if it has less than 7.
+* If player drew an 8, bank draws if it has less than 3.
+
+Remember, everything in baccarat is automatic; you need not memorize any of
+these esoteric rules.  Simply play your $20 and hope for the best.
+
+
+* KENO *
+
+Keno is a lottery that takes place every five minutes in the casino.  From
+a thoroughly mixed hopper of balls numbered 1 through 80, twenty balls are
+drawn.  The player marks numbers on a ticket, and is paid off according to
+how many of his numbers were drawn.
+
+Keno is not found in the game selection window, but is available from the
+menu bar while playing other games.  Simply select "New Ticket" from the
+"Keno" menu, and a ticket will appear.  Click on numbers to select or
+deselect them (up to eight numbers may be selected in Boxcars Casino), and
+click "Submit Sheet" to enter your ticket into the Keno drawing.  When the
+drawing takes place (within the next few minutes) your ticket will
+reappear, showing what numbers were drawn and how much you won.
+
+Keno is generally a high-edge game for the house, but the Boxcars Casino
+offers somewhat better odds than are typically found in actual casinos.
+
+Keno Payoffs For $1, $2 and $3 Tickets
+
+     Spots Played     Caught     $1 Payoff     $2 Payoff     $3 Payoff
+          1              1            $ 3           $ 6           $ 9
+
+          2              2           $ 13          $ 26          $ 39
+
+          3              2            $ 2           $ 4           $ 6
+          3              3           $ 28          $ 56          $ 84
+
+          4              3            $ 9          $ 18          $ 27
+          4              4           $130         $ 260         $ 390
+
+          5              3            $ 3           $ 6           $ 9
+          5              4           $ 22          $ 44          $ 66
+          5              5          $ 413         $ 826       $ 1,239
+
+          6              4            $ 9          $ 18          $ 27
+          6              5           $ 86         $ 172         $ 258
+          6              6        $ 2,067       $ 4,134       $ 6,201
+
+          7              4            $ 3           $ 6           $ 9
+          7              5           $ 23          $ 46          $ 69
+          7              6          $ 273         $ 546         $ 819
+          7              7        $ 8,195      $ 16,390      $ 24,585
+
+          8              5           $ 10          $ 20          $ 30
+          8              6           $ 84         $ 168         $ 252
+          8              7        $ 1,246         $2492        $ 3738
+          8              8       $ 46,022      $ 75,000      $ 75,000
+
+You are limited to winnings of $75,000 per keno game.
+
+Way Tickets
+
+If you desire, you may play several different combinations of numbers on
+the same ticket, by creating a "way" ticket.  To do this, select up to
+eight numbers, then click the "Group" button.  A dark band will be drawn
+around your selections, showing that these numbers now form a group.
+Select more numbers and click "Group" again to form more groups.  These
+groups may be combined in various ways to form multiple plays on the same
+ticket.
+
+Group A:  4 spots
+Group B:  4 spots
+Group C:  4 spots
+Spots or Ways:  3/8
+
+In the above example, the player has created three groups of four numbers
+each.  The "3/8" in the "Spots or Ways" box indicates that he wants to play
+the "3 ways of making 8" with these groups.  (That is, there are three
+different ways that groups can be combined to make a collection of eight
+spots.)  Since he wishes to play only $1 per way, his total game price is
+$3.
+
+Now consider this more complicated example:
+
+Group A:  4 spots
+Group B:  2 spots
+Group C:  2 spots
+Group D:  2 spots
+Group E:  1 spot
+Spots or Ways:  4/4  3/3  4/6
+
+In this ticket, the player is playing the 4 ways of making 4 spots (4/4),
+the 3 ways of making 3 spots (3/3), and the 4 ways of making 6 spots (4/6).
+(Note:  You may not enter more than three different number pairs in the
+"Spots or Ways" box.)  Since the number of "ways" (4, 3 and 4) total 11,
+the player must pay $11 per game ($1 for each "way").
+
+A ticket is unacceptable for entry if it has an incorrect number pair in
+the "Spots or Ways" box.  In the above example, "3/7" would be
+unacceptable, since the correct number of ways of making 7 spots from the
+groups is 4, not 3.  "4/7" would be the correct number pair.
+
+Mistakes
+
+Keno number groups cannot be erased.  If you make an error, click the
+"Start Over" button to start over with a fresh ticket.
+
+You can skip rapidly through the keno results sequence by clicking the
+mouse.
+
+
+* DISCLAIMER *
+
+To the best of our knowledge, Boxcars Casino is a well-written piece of
+computer software that shouldn't cause any problems on your computer
+system.  However, for legal reasons, we must include the following:
+
+* The creators and distributors of this software package make no
+warranties, either express or implied, regarding its quality, or fitness
+for any particular purpose.
+* The user assumes all risk of damages that may result as a consequence of
+the use of this software package, even if such resulted from an error in
+the software or manual.
+* Once it leaves their hands, the creators and distributors of this
+software package cannot be held responsible or liable for the corruption of
+the package by viruses, hackers, computer errors, or any other modification
+to the original state of the software package.
+* If for any reason whatever you do not agree to the above terms, you are
+not given permission to keep, use, or distribute this software package,
+even if you have sent in the registration fee.
+
+
+
+Have fun!
