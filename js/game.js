@@ -52,10 +52,7 @@ function gameCreate() {
 function changeMode(mode) {
     switch (mode) {
         case 'Bank':
-            //menuMode = false;
-            //bank = scene.add.image(0, navBar.height, 'bank').setOrigin(0, 0);
             menu.x += 100;
-            //console.log('hide menu');
             break;
 
         default:

@@ -1,574 +1,704 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Phaser Roulette</title>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #0b0b0b;
-      overflow: hidden;
-      height: 100%;
-    }
-    #game {
-      width: 100vw;
-      height: 100vh;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-      image-rendering: pixelated;
-    }
-  </style>
-</head>
-<body>
-  <div id="game"></div>
+import { getBestChipStackDistribution } from "../GameFunctions.js";
+import { Navbar } from "../ui/Navbar.js";
 
-  <script>
-    class RouletteScene extends Phaser.Scene {
-      constructor() {
-        super("RouletteScene");
+export class RouletteScene extends Phaser.Scene {
+    constructor() {
+        super("ROULETTE");
+    }
 
-        this.balance = 500;
-        this.currentChipValue = 10;
-        this.bets = [];
-        this.betMap = new Map();
-        this.resultNumber = null;
+    preload() {
+        this.load.image("rouletteBackground", "assets/images/roulette.png");
+        this.load.image("rouletteBall", "assets/images/roulette ball.png");
+        this.load.spritesheet("rouletteChips", "assets/images/chips.png", {
+            frameWidth: 30,
+            frameHeight: 27
+        });
+        Navbar.preload(this);
+        this.load.spritesheet(
+            "rouletteWheelSpinSheet",
+            "assets/images/roulette wheel.png",
+            { frameWidth: 800, frameHeight: 600 }
+        );
+    }
+
+    create() {
         this.isSpinning = false;
-
-        this.redNumbers = new Set([
-          1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36
-        ]);
-      }
-
-      create() {
-        this.cameras.main.setBackgroundColor("#008400");
-
-        this.drawWindowChrome();
-        this.drawHUD();
-        this.createWheel();
-        this.createBoard();
-        this.createControls();
-        this.refreshHUD();
-      }
-
-      drawWindowChrome() {
-        const w = this.scale.width;
-        const top = this.add.graphics();
-
-        top.fillStyle(0x1f43b8, 1);
-        top.fillRect(0, 0, w, 24);
-
-        top.fillStyle(0xbfc8d6, 1);
-        top.fillRect(0, 24, w, 20);
-
-        this.add.text(8, 3, "Roulette", {
-          fontFamily: "Arial",
-          fontSize: "14px",
-          color: "#ffffff"
-        });
-
-        this.add.text(8, 26, "(A)   File   Options   Keno", {
-          fontFamily: "Arial",
-          fontSize: "12px",
-          color: "#000000"
-        });
-      }
-
-      drawHUD() {
-        this.hudResult = this.add.text(8, 50, "29", {
-          fontFamily: "Arial Black, Arial",
-          fontSize: "30px",
-          color: "#000000"
-        });
-
-        this.moneyPanel = this.add.rectangle(606, 57, 56, 34, 0x000000).setOrigin(0, 0);
-        this.hudBalance = this.add.text(612, 44, "$500", {
-          fontFamily: "Arial Black, Arial",
-          fontSize: "20px",
-          color: "#ffffff",
-          align: "right"
-        });
-
-        this.hudChipValue = this.add.text(252, 318, "10", {
-          fontFamily: "Arial Black, Arial",
-          fontSize: "26px",
-          color: "#ffffff",
-          stroke: "#2b1db6",
-          strokeThickness: 8
-        }).setOrigin(0.5);
-      }
-
-      createWheel() {
-        const cx = 320;
-        const cy = 175;
-        const container = this.add.container(cx, cy);
-
-        const bg = this.add.graphics();
-        bg.fillStyle(0x0d7f00, 1);
-        bg.lineStyle(1, 0x003d00, 1);
-        bg.fillRect(-135, -95, 270, 190);
-        bg.strokeRect(-135, -95, 270, 190);
-        container.add(bg);
-
-        const wheel = this.add.container(0, 0);
-        this.wheelContainer = wheel;
-
-        const outer = this.add.circle(0, 0, 78, 0x050505);
-        wheel.add(outer);
-
-        const rim = this.add.graphics();
-        rim.lineStyle(8, 0x101010, 1);
-        rim.strokeCircle(0, 0, 73);
-        wheel.add(rim);
-
-        const pockets = [
-          0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27,
-          13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1,
-          20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26
-        ];
-
-        for (let i = 0; i < pockets.length; i++) {
-          const angle1 = Phaser.Math.DegToRad(-90 + (i * 360 / pockets.length));
-          const angle2 = Phaser.Math.DegToRad(-90 + ((i + 1) * 360 / pockets.length));
-          const num = pockets[i];
-          const color = num === 0 ? 0x00a43a : (this.redNumbers.has(num) ? 0xc92121 : 0x111111);
-
-          const slice = this.add.graphics();
-          slice.fillStyle(color, 1);
-          slice.beginPath();
-          slice.moveTo(0, 0);
-          slice.arc(0, 0, 67, angle1, angle2, false);
-          slice.closePath();
-          slice.fillPath();
-          wheel.add(slice);
-
-          const mid = (angle1 + angle2) / 2;
-          const tx = Math.cos(mid) * 56;
-          const ty = Math.sin(mid) * 56;
-
-          const label = this.add.text(tx, ty, String(num), {
-            fontFamily: "Arial Black, Arial",
-            fontSize: "11px",
-            color: "#ffffff"
-          }).setOrigin(0.5);
-
-          label.setRotation(mid + Math.PI / 2);
-          wheel.add(label);
-        }
-
-        const innerRim = this.add.circle(0, 0, 45, 0xd4aa5a);
-        wheel.add(innerRim);
-
-        const spindleBase = this.add.circle(0, 0, 13, 0xcfcfcf);
-        wheel.add(spindleBase);
-
-        const spindleStem = this.add.rectangle(0, -12, 6, 28, 0xbfbfbf);
-        wheel.add(spindleStem);
-
-        const spindleTop = this.add.circle(0, -27, 8, 0xdadada);
-        wheel.add(spindleTop);
-
-        const highlight = this.add.graphics();
-        highlight.lineStyle(2, 0xffffff, 0.15);
-        highlight.strokeEllipse(-8, -10, 126, 104);
-        wheel.add(highlight);
-
-        container.add(wheel);
-
-        const marker = this.add.triangle(0, -76, 0, 0, 8, 12, -8, 12, 0xffffff);
-        container.add(marker);
-      }
-
-      createBoard() {
-        this.boardContainer = this.add.container(8, 80);
-        this.betZones = [];
-
-        const g = this.add.graphics();
-        this.boardContainer.add(g);
-
-        const cellW = 42;
-        const cellH = 34;
-        const zeroW = 38;
-        const leftX = 66;
-        const topY = 0;
-
-        g.lineStyle(2, 0xffffff, 1);
-
-        // 0 and 00
-        const zeroPolyTop = [
-          12, 0,
-          zeroW, 0,
-          zeroW + 18, cellH / 2,
-          zeroW, cellH,
-          12, cellH,
-          -6, cellH / 2
-        ];
-
-        const zeroPolyBottom = zeroPolyTop.map((v, i) => i % 2 ? v + cellH : v);
-
-        this.drawPolygonCell(g, zeroPolyTop, 0x159d2f);
-        this.drawPolygonCell(g, zeroPolyBottom, 0x159d2f);
-
-        this.addPolygonBet(0, "0", 26, 17, zeroPolyTop);
-        this.addPolygonBet(0, "00", 26, 51, zeroPolyBottom);
-
-        // number grid
-        const columns = [
-          [3,2,1],
-          [6,5,4],
-          [9,8,7],
-          [12,11,10],
-          [15,14,13],
-          [18,17,16],
-          [21,20,19],
-          [24,23,22],
-          [27,26,25],
-          [30,29,28],
-          [33,32,31],
-          [36,35,34]
-        ];
-
-        for (let c = 0; c < columns.length; c++) {
-          for (let r = 0; r < 3; r++) {
-            const num = columns[c][r];
-            const x = leftX + c * cellW;
-            const y = topY + r * cellH;
-            const color = this.redNumbers.has(num) ? 0xd9472f : 0x101010;
-
-            g.fillStyle(color, 1);
-            g.fillRect(x, y, cellW, cellH);
-            g.strokeRect(x, y, cellW, cellH);
-
-            const txt = this.add.text(x + cellW / 2, y + cellH / 2, String(num), {
-              fontFamily: "Arial Black, Arial",
-              fontSize: "16px",
-              color: "#ffffff"
-            }).setOrigin(0.5);
-            this.boardContainer.add(txt);
-
-            this.addRectBet(`num-${num}`, num, x, y, cellW, cellH);
-          }
-        }
-
-        // side 2-to-1
-        const sideX = leftX + columns.length * cellW;
-        for (let r = 0; r < 3; r++) {
-          g.fillStyle(0x188b17, 1);
-          g.fillRect(sideX, topY + r * cellH, 42, cellH);
-          g.strokeRect(sideX, topY + r * cellH, 42, cellH);
-
-          const t = this.add.text(sideX + 21, topY + r * cellH + cellH / 2, "2 to 1", {
-            fontFamily: "Arial",
-            fontSize: "13px",
-            color: "#fff7a8"
-          }).setOrigin(0.5);
-          t.setAngle(-90);
-          this.boardContainer.add(t);
-
-          this.addRectBet(`col-${2-r}`, { type: "column", value: 2 - r }, sideX, topY + r * cellH, 42, cellH);
-        }
-
-        // dozens
-        const dozenY = topY + 3 * cellH;
-        const dozenW = cellW * 4;
-
-        for (let i = 0; i < 3; i++) {
-          const x = leftX + i * dozenW;
-          g.fillStyle(0x188b17, 1);
-          g.fillRect(x, dozenY, dozenW, 28);
-          g.strokeRect(x, dozenY, dozenW, 28);
-
-          const label = ["1st 12", "2nd 12", "3rd 12"][i];
-          const txt = this.add.text(x + dozenW / 2, dozenY + 14, label, {
-            fontFamily: "Arial Black, Arial",
-            fontSize: "14px",
-            color: "#fff5a0"
-          }).setOrigin(0.5);
-          this.boardContainer.add(txt);
-
-          this.addRectBet(`dozen-${i+1}`, { type: "dozen", value: i + 1 }, x, dozenY, dozenW, 28);
-        }
-
-        // bottom outside bets
-        const outsideY = dozenY + 28;
-        const outsideW = cellW * 2;
-        const labels = [
-          { key: "low", text: "1-18", bet: { type: "range", value: "low" } },
-          { key: "even", text: "EVEN", bet: { type: "parity", value: "even" } },
-          { key: "red", text: "RED", bet: { type: "color", value: "red" }, fill: 0xd9472f },
-          { key: "black", text: "BLACK", bet: { type: "color", value: "black" }, fill: 0x101010 },
-          { key: "odd", text: "ODD", bet: { type: "parity", value: "odd" } },
-          { key: "high", text: "19-36", bet: { type: "range", value: "high" } }
-        ];
-
-        for (let i = 0; i < labels.length; i++) {
-          const x = leftX + i * outsideW;
-          const fill = labels[i].fill ?? 0x188b17;
-          g.fillStyle(fill, 1);
-          g.fillRect(x, outsideY, outsideW, 30);
-          g.strokeRect(x, outsideY, outsideW, 30);
-
-          const txt = this.add.text(x + outsideW / 2, outsideY + 15, labels[i].text, {
-            fontFamily: "Arial Black, Arial",
-            fontSize: "14px",
-            color: "#fff5a0"
-          }).setOrigin(0.5);
-          this.boardContainer.add(txt);
-
-          this.addRectBet(labels[i].key, labels[i].bet, x, outsideY, outsideW, 30);
-        }
-      }
-
-      drawPolygonCell(g, points, fill) {
-        g.fillStyle(fill, 1);
-        g.beginPath();
-        g.moveTo(points[0], points[1]);
-        for (let i = 2; i < points.length; i += 2) {
-          g.lineTo(points[i], points[i + 1]);
-        }
-        g.closePath();
-        g.fillPath();
-        g.strokePath();
-      }
-
-      addRectBet(id, bet, x, y, w, h) {
-        const zone = this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-        zone.betId = id;
-        zone.betData = bet;
-        zone.on("pointerdown", () => this.placeBet(zone.betId, zone.betData, x + w / 2, y + h / 2));
-        this.boardContainer.add(zone);
-        this.betZones.push(zone);
-      }
-
-      addPolygonBet(id, label, centerX, centerY, points) {
-        const minX = Math.min(points[0], points[2], points[4], points[6], points[8], points[10]);
-        const maxX = Math.max(points[0], points[2], points[4], points[6], points[8], points[10]);
-        const minY = Math.min(points[1], points[3], points[5], points[7], points[9], points[11]);
-        const maxY = Math.max(points[1], points[3], points[5], points[7], points[9], points[11]);
-
-        const zone = this.add.zone(minX, minY, maxX - minX, maxY - minY)
-          .setOrigin(0, 0)
-          .setInteractive({ useHandCursor: true });
-
-        zone.betId = id;
-        zone.betData = label === "00" ? { type: "number", value: "00" } : { type: "number", value: 0 };
-        zone.on("pointerdown", () => this.placeBet(zone.betId, zone.betData, centerX, centerY));
-        this.boardContainer.add(zone);
-
-        const txt = this.add.text(centerX, centerY, label, {
-          fontFamily: "Arial Black, Arial",
-          fontSize: "24px",
-          color: "#ffffff"
-        }).setOrigin(0.5);
-        this.boardContainer.add(txt);
-      }
-
-      createControls() {
-        this.exitButton = this.createButton(10, 350, 48, 22, "Exit", () => {
-          this.clearBets();
-          this.resultNumber = null;
-          this.refreshHUD();
-        });
-
-        this.spinButton = this.createButton(102, 350, 58, 22, "Spin", () => {
-          this.spinRoulette();
-        });
-
-        const chipValues = [1, 5, 10, 25, 100];
-        let x = 210;
-        for (const value of chipValues) {
-          const chip = this.add.circle(x, 326, 16, 0x3e37d6).setStrokeStyle(2, 0xffffff);
-          chip.setInteractive({ useHandCursor: true });
-          chip.on("pointerdown", () => {
-            this.currentChipValue = value;
-            this.refreshHUD();
-          });
-
-          const txt = this.add.text(x, 326, String(value), {
-            fontFamily: "Arial Black, Arial",
-            fontSize: "16px",
-            color: "#ffffff"
-          }).setOrigin(0.5);
-
-          x += 42;
-        }
-
-        this.clearButton = this.createButton(470, 350, 72, 22, "Clear Bets", () => {
-          if (!this.isSpinning) this.clearBets();
-        });
-      }
-
-      createButton(x, y, w, h, label, onClick) {
-        const g = this.add.graphics();
-        g.fillStyle(0xd4d4d4, 1);
-        g.fillRect(x, y, w, h);
-        g.lineStyle(2, 0xffffff, 1);
-        g.strokeRect(x, y, w, h);
-        g.lineStyle(1, 0x444444, 1);
-        g.strokeRect(x + 1, y + 1, w - 2, h - 2);
-
-        const zone = this.add.zone(x, y, w, h).setOrigin(0, 0).setInteractive({ useHandCursor: true });
-        zone.on("pointerdown", onClick);
-
-        this.add.text(x + w / 2, y + h / 2, label, {
-          fontFamily: "Arial",
-          fontSize: "18px",
-          color: "#000000"
-        }).setOrigin(0.5);
-
-        return zone;
-      }
-
-      placeBet(id, betData, cx, cy) {
-        if (this.isSpinning) return;
-        if (this.balance < this.currentChipValue) return;
-
-        this.balance -= this.currentChipValue;
-
-        let record = this.betMap.get(id);
-        if (!record) {
-          const chip = this.add.container(this.boardContainer.x + cx, this.boardContainer.y + cy);
-
-          const disk = this.add.circle(0, 0, 13, 0x2f2fe7).setStrokeStyle(2, 0xffffff);
-          const txt = this.add.text(0, 0, String(this.currentChipValue), {
-            fontFamily: "Arial Black, Arial",
-            fontSize: "13px",
-            color: "#ffffff"
-          }).setOrigin(0.5);
-
-          chip.add([disk, txt]);
-
-          record = {
-            id,
-            betData,
-            amount: 0,
-            chip,
-            txt
-          };
-          this.betMap.set(id, record);
-          this.bets.push(record);
-        }
-
-        record.amount += this.currentChipValue;
-        record.txt.setText(String(record.amount));
-        this.refreshHUD();
-      }
-
-      clearBets() {
-        for (const bet of this.bets) {
-          this.balance += bet.amount;
-          bet.chip.destroy();
-        }
+        this.wager = 0;
         this.bets = [];
-        this.betMap.clear();
-        this.refreshHUD();
-      }
+        this.wageredChips = [];
+        this.redNumbers = new Set([
+            1, 3, 5, 7, 9, 12, 14, 16, 18,
+            19, 21, 23, 25, 27, 30, 32, 34, 36
+        ]);
+        this.add.image(0, 61, "rouletteBackground")
+            .setOrigin(0, 0)
+            .setDisplaySize(800, 539);
 
-      spinRoulette() {
-        if (this.isSpinning || this.bets.length === 0) return;
+        this.chipSprites = [];
+        this.bankrollChipStacks = [];
+        this.configureChipDragging();
+        this.buildBankrollStacks();
+        this.wheel = this.add.sprite(400, 310, "rouletteWheelSpinSheet", 0)
+            .setDisplaySize(640, 480)
+            .setVisible(false);
+        this.ball = this.add.image(730, 120, "rouletteBall")
+            .setDisplaySize(28, 28)
+            .setVisible(false);
+        this.wheelLayer = this.add.container(0, 0, [this.wheel, this.ball])
+            .setDepth(45)
+            .setVisible(false);
+
+        this.anims.create({
+            key: "rouletteBallDrop",
+            frames: this.anims.generateFrameNumbers("rouletteWheelSpinSheet", {
+                start: 0,
+                end: 14
+            }),
+            frameRate: 18,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: "rouletteBallOrbit",
+            frames: this.anims.generateFrameNumbers("rouletteWheelSpinSheet", {
+                start: 15,
+                end: 69
+            }),
+            frameRate: 30,
+            repeat: 0
+        });
+
+        this.anims.create({
+            key: "rouletteBallBounce",
+            frames: this.anims.generateFrameNumbers("rouletteWheelSpinSheet", {
+                start: 70,
+                end: 110
+            }),
+            frameRate: 18,
+            repeat: 0
+        });
+
+        this.wheel.on("animationcomplete", (animation) => {
+            if (!this.isSpinning) return;
+
+            if (animation.key === "rouletteBallDrop") {
+                this.wheel.play("rouletteBallOrbit");
+            } else if (animation.key === "rouletteBallOrbit") {
+                this.wheel.play("rouletteBallBounce");
+            } else if (animation.key === "rouletteBallBounce") {
+                this.wheelAnimationDone = true;
+                this.hideWheelAndBall();
+                this.finishSpinWhenReady();
+            }
+        });
+
+        this.resultText = this.add.text(
+            400,
+            94,
+            this.hasValidBet() ? "CLICK SPIN" : "PLACE A BET",
+            {
+                fontFamily: "Arial, sans-serif",
+                fontSize: "30px",
+                fontStyle: "bold",
+                color: "#ffffff",
+                stroke: "#000000",
+                strokeThickness: 5
+            }
+        ).setOrigin(0.5).setDepth(50);
+
+        this.spinButton = this.add.text(377, 576, "SPIN", {
+            fontFamily: "Arial",
+            fontSize: "19px",
+            fontStyle: "bold",
+            color: "#000000",
+            padding: { x: 20, y: 5 }
+        })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+
+        this.exitButton = this.add.text(37, 576, "EXIT", {
+            fontFamily: "Arial",
+            fontSize: "17px",
+            fontStyle: "bold",
+            color: "#000000",
+            padding: { x: 13, y: 5 }
+        })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true });
+
+        this.spinButton.on("pointerdown", () => this.spinWheel());
+        this.wheel.on("pointerdown", () => this.spinWheel());
+        this.exitButton.on("pointerdown", () => this.scene.start("Hub"));
+        this.input.keyboard.on("keydown-SPACE", () => this.spinWheel());
+
+        this.navbar = new Navbar(this);
+        this.updateSpinButtonState();
+    }
+
+    buildBankrollStacks() {
+        const stake = Number(globalThis.STAKE ?? 0);
+        if (!Number.isSafeInteger(stake) || stake <= 0) return;
+
+        const chipFrames = new Map([
+            [5, 0],
+            [10, 1],
+            [20, 2],
+            [50, 3],
+            [100, 4],
+            [500, 5],
+            [1000, 6],
+            [5000, 7]
+        ]);
+
+        let distribution;
+        try {
+            distribution = getBestChipStackDistribution(stake, {
+                denominations: [...chipFrames.keys()].sort((a, b) => b - a),
+                maxStackHeight: 5,
+                preferredVariety: 4
+            });
+        } catch {
+            let remaining = stake;
+            const stacks = [];
+            for (const denomination of [...chipFrames.keys()].sort((a, b) => b - a)) {
+                let count = Math.floor(remaining / denomination);
+                remaining %= denomination;
+                while (count > 0) {
+                    const stackCount = Math.min(count, 10);
+                    stacks.push({
+                        denomination,
+                        count: stackCount,
+                        value: denomination * stackCount
+                    });
+                    count -= stackCount;
+                }
+            }
+            if (remaining !== 0) return;
+            distribution = { stacks };
+        }
+
+        const stackSpacing = 36;
+        const chipOverlap = 7;
+        const stackBottomY = 513;
+        const firstStackX = this.scale.width / 2
+            - ((distribution.stacks.length - 1) * stackSpacing) / 2;
+
+        distribution.stacks.forEach((stack, stackIndex) => {
+            const stackChips = [];
+            for (let chipIndex = 0; chipIndex < stack.count; chipIndex++) {
+                const chip = this.add.sprite(
+                    firstStackX + stackIndex * stackSpacing,
+                    stackBottomY - chipIndex * chipOverlap,
+                    "rouletteChips",
+                    chipFrames.get(stack.denomination)
+                )
+                    .setOrigin(0.5, 1)
+                    .setDepth(40);
+
+                chip.setData({
+                    rouletteChip: true,
+                    value: stack.denomination,
+                    stackIndex,
+                    chipIndex,
+                    originalX: chip.x,
+                    originalY: chip.y
+                });
+                stackChips.push(chip);
+                this.chipSprites.push(chip);
+            }
+            this.bankrollChipStacks[stackIndex] = stackChips;
+            this.makeBankrollChipDraggable(stackChips.at(-1));
+        });
+    }
+
+    makeBankrollChipDraggable(chip) {
+        if (!chip || this.isSpinning) return;
+
+        if (!chip.input) {
+            chip.setInteractive({
+                hitArea: new Phaser.Geom.Rectangle(-8, -8, 46, 43),
+                hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+                useHandCursor: true
+            });
+        } else {
+            chip.input.enabled = true;
+            chip.input.cursor = "pointer";
+        }
+        this.input.setDraggable(chip);
+    }
+
+    configureChipDragging() {
+        this.input.on("dragstart", (pointer, chip) => {
+            if (!chip.getData?.("rouletteChip")) return;
+            this.children.bringToTop(chip);
+            chip.setScale(1.08);
+        });
+
+        this.input.on("drag", (pointer, chip, dragX, dragY) => {
+            if (!chip.getData?.("rouletteChip")) return;
+            chip.setPosition(dragX, dragY);
+        });
+
+        this.input.on("dragend", (pointer, chip) => {
+            if (!chip.getData?.("rouletteChip")) return;
+            chip.setScale(1);
+            this.handleChipDrop(chip);
+        });
+    }
+
+    handleChipDrop(chip) {
+        const isWagered = this.wageredChips.includes(chip);
+        const chipCenterY = chip.y - chip.displayHeight / 2;
+
+        if (isWagered && this.isOverOriginalStack(chip)) {
+            this.returnBetChipToStack(chip);
+            return;
+        }
+
+        const bet = this.getBetAt(chip.x, chipCenterY);
+        if (!bet || this.isSpinning) {
+            chip.setPosition(
+                chip.getData(isWagered ? "betX" : "originalX"),
+                chip.getData(isWagered ? "betY" : "originalY")
+            );
+            return;
+        }
+
+        if (isWagered) {
+            this.moveBetChip(chip, bet);
+        } else {
+            this.placeBetChip(chip, bet);
+        }
+    }
+
+    isOverOriginalStack(chip) {
+        return Phaser.Geom.Rectangle.Contains(
+            new Phaser.Geom.Rectangle(
+                chip.getData("originalX") - 22,
+                485,
+                44,
+                80
+            ),
+            chip.x,
+            chip.y
+        );
+    }
+
+    placeBetChip(chip, bet) {
+        const wager = {
+            chip,
+            value: chip.getData("value"),
+            name: bet.name,
+            numbers: bet.numbers,
+            payout: bet.payout
+        };
+        chip.setData({ betX: chip.x, betY: chip.y });
+        this.bets.push(wager);
+        this.wageredChips.push(chip);
+        this.wager += wager.value;
+        this.refreshChipStack(chip.getData("stackIndex"));
+        this.showCurrentBet(wager);
+        this.updateSpinButtonState();
+    }
+
+    moveBetChip(chip, bet) {
+        const wager = this.bets.find((candidate) => candidate.chip === chip);
+        if (!wager) return;
+        wager.name = bet.name;
+        wager.numbers = bet.numbers;
+        wager.payout = bet.payout;
+        chip.setData({ betX: chip.x, betY: chip.y });
+        this.showCurrentBet(wager);
+    }
+
+    returnBetChipToStack(chip) {
+        const betIndex = this.bets.findIndex((bet) => bet.chip === chip);
+        if (betIndex === -1 || this.isSpinning) return;
+
+        this.wager -= this.bets[betIndex].value;
+        this.bets.splice(betIndex, 1);
+        this.wageredChips = this.wageredChips.filter(
+            (wageredChip) => wageredChip !== chip
+        );
+        chip.setPosition(chip.getData("originalX"), chip.getData("originalY"));
+        this.refreshChipStack(chip.getData("stackIndex"));
+        this.resultText
+            .setColor("#ffffff")
+            .setText(this.hasValidBet() ? `TOTAL BET: $${this.wager}` : "PLACE A BET");
+        this.updateSpinButtonState();
+    }
+
+    refreshChipStack(stackIndex) {
+        const stack = this.bankrollChipStacks[stackIndex] ?? [];
+        stack.forEach((chip) => {
+            if (this.wageredChips.includes(chip)) {
+                this.makeBankrollChipDraggable(chip);
+            } else {
+                chip.disableInteractive();
+            }
+        });
+        const topChip = [...stack].reverse().find(
+            (chip) => chip.active && !this.wageredChips.includes(chip)
+        );
+        this.makeBankrollChipDraggable(topChip);
+    }
+
+    showCurrentBet(bet) {
+        this.resultText
+            .setColor("#ffffff")
+            .setText(
+                `${bet.name.toUpperCase()}  $${bet.value}  (${bet.payout}:1)\n` +
+                `TOTAL BET: $${this.wager.toLocaleString("en-US")}`
+            );
+    }
+
+    getBetAt(x, y) {
+        const gridX = 89;
+        const gridY = 127;
+        const gridWidth = 640;
+        const gridHeight = 181;
+        const cellWidth = gridWidth / 12;
+        const cellHeight = gridHeight / 3;
+        const gridRight = gridX + gridWidth;
+        const gridBottom = gridY + gridHeight;
+        const numberAt = (column, row) => column * 3 + row + 1;
+        const columnNumbers = (column) => [
+            numberAt(column, 0),
+            numberAt(column, 1),
+            numberAt(column, 2)
+        ];
+
+        // The American five-number basket sits where 0/00 meet 1-2-3.
+        if (Math.abs(x - gridX) <= 12 && Math.abs(y - (gridY + gridHeight / 2)) <= 13) {
+            return { name: "Five number", numbers: [0, "00", 1, 2, 3], payout: 6 };
+        }
+
+        if (x >= 25 && x < gridX && y >= gridY && y <= gridBottom) {
+            const middleY = gridY + gridHeight / 2;
+            if (Math.abs(y - middleY) <= 10) {
+                return { name: "Split 0/00", numbers: [0, "00"], payout: 17 };
+            }
+            const number = y < middleY ? 0 : "00";
+            return { name: `Straight ${number}`, numbers: [number], payout: 35 };
+        }
+
+        if (x >= gridRight && x <= 783 && y >= gridY && y <= gridBottom) {
+            const row = Phaser.Math.Clamp(
+                Math.floor((y - gridY) / cellHeight),
+                0,
+                2
+            );
+            const numbers = Array.from({ length: 12 }, (_, column) => numberAt(column, row));
+            return { name: "Column", numbers, payout: 2 };
+        }
+
+        if (x >= gridX && x <= gridRight && y > gridBottom + 11 && y <= 353) {
+            const dozen = Phaser.Math.Clamp(
+                Math.floor((x - gridX) / (gridWidth / 3)),
+                0,
+                2
+            );
+            const first = dozen * 12 + 1;
+            const numbers = Array.from({ length: 12 }, (_, index) => first + index);
+            return { name: `${dozen + 1}${dozen === 0 ? "st" : dozen === 1 ? "nd" : "rd"} dozen`, numbers, payout: 2 };
+        }
+
+        if (x >= gridX && x <= gridRight && y > 353 && y <= 404) {
+            const outsideIndex = Phaser.Math.Clamp(
+                Math.floor((x - gridX) / (gridWidth / 6)),
+                0,
+                5
+            );
+            const all = Array.from({ length: 36 }, (_, index) => index + 1);
+            const outsideBets = [
+                { name: "1-18", numbers: all.filter((n) => n <= 18) },
+                { name: "Even", numbers: all.filter((n) => n % 2 === 0) },
+                { name: "Red", numbers: all.filter((n) => this.redNumbers.has(n)) },
+                { name: "Black", numbers: all.filter((n) => !this.redNumbers.has(n)) },
+                { name: "Odd", numbers: all.filter((n) => n % 2 === 1) },
+                { name: "19-36", numbers: all.filter((n) => n >= 19) }
+            ];
+            return { ...outsideBets[outsideIndex], payout: 1 };
+        }
+
+        if (x < gridX || x > gridRight || y < gridY || y > gridBottom + 11) {
+            return null;
+        }
+
+        const columnPosition = (x - gridX) / cellWidth;
+        const nearestColumnLine = Math.round(columnPosition);
+        const nearColumnLine = Math.abs(columnPosition - nearestColumnLine) <= 0.16;
+
+        if (Math.abs(y - gridBottom) <= 11) {
+            if (nearColumnLine && nearestColumnLine > 0 && nearestColumnLine < 12) {
+                return {
+                    name: "Line",
+                    numbers: [
+                        ...columnNumbers(nearestColumnLine - 1),
+                        ...columnNumbers(nearestColumnLine)
+                    ],
+                    payout: 5
+                };
+            }
+            const column = Phaser.Math.Clamp(Math.floor(columnPosition), 0, 11);
+            return { name: "Street", numbers: columnNumbers(column), payout: 11 };
+        }
+
+        const rowPosition = (y - gridY) / cellHeight;
+        const column = Phaser.Math.Clamp(Math.floor(columnPosition), 0, 11);
+        const row = Phaser.Math.Clamp(Math.floor(rowPosition), 0, 2);
+        const nearestRowLine = Math.round(rowPosition);
+        const nearRowLine = Math.abs(rowPosition - nearestRowLine) <= 0.16;
+        const verticalBoundary = nearColumnLine && nearestColumnLine > 0 && nearestColumnLine < 12;
+        const horizontalBoundary = nearRowLine && nearestRowLine > 0 && nearestRowLine < 3;
+
+        if (verticalBoundary && horizontalBoundary) {
+            return {
+                name: "Corner",
+                numbers: [
+                    numberAt(nearestColumnLine - 1, nearestRowLine - 1),
+                    numberAt(nearestColumnLine, nearestRowLine - 1),
+                    numberAt(nearestColumnLine - 1, nearestRowLine),
+                    numberAt(nearestColumnLine, nearestRowLine)
+                ],
+                payout: 8
+            };
+        }
+        if (verticalBoundary) {
+            return {
+                name: "Split",
+                numbers: [
+                    numberAt(nearestColumnLine - 1, row),
+                    numberAt(nearestColumnLine, row)
+                ],
+                payout: 17
+            };
+        }
+        if (horizontalBoundary) {
+            return {
+                name: "Split",
+                numbers: [
+                    numberAt(column, nearestRowLine - 1),
+                    numberAt(column, nearestRowLine)
+                ],
+                payout: 17
+            };
+        }
+
+        const number = numberAt(column, row);
+        return { name: `Straight ${number}`, numbers: [number], payout: 35 };
+    }
+
+    spinWheel() {
+        if (this.isSpinning) return;
+        if (!this.hasValidBet()) {
+            this.hideWheelAndBall();
+            this.resultText.setColor("#ffffff").setText("PLACE A BET");
+            return;
+        }
 
         this.isSpinning = true;
+        this.chipSprites.forEach((chip) => chip.disableInteractive());
+        this.wageredChips.forEach((chip) => chip.setVisible(false));
+        this.updateSpinButtonState();
+        this.resultText.setText("");
+        this.wheelLayer.setVisible(true);
+        this.wheel
+            .setVisible(true)
+            .setInteractive({ useHandCursor: true });
 
-        const winningNumber = Phaser.Math.Between(0, 36);
-        const spins = Phaser.Math.Between(5, 8);
-        const finalRotation = Phaser.Math.FloatBetween(0, Math.PI * 2);
-
-        this.tweens.add({
-          targets: this.wheelContainer,
-          angle: Phaser.Math.RadToDeg(finalRotation) + spins * 360,
-          duration: 3200,
-          ease: "Cubic.easeOut",
-          onComplete: () => {
-            this.resolveSpin(winningNumber);
-          }
-        });
-      }
-
-      resolveSpin(number) {
-        this.resultNumber = number;
-        let winnings = 0;
-
-        for (const bet of this.bets) {
-          const amt = bet.amount;
-          const b = bet.betData;
-
-          if (b.type === "number") {
-            if (b.value === number) winnings += amt * 36;
-          } else if (typeof b === "number") {
-            if (b === number) winnings += amt * 36;
-          } else if (b.type === "color") {
-            if (number !== 0) {
-              const color = this.redNumbers.has(number) ? "red" : "black";
-              if (b.value === color) winnings += amt * 2;
-            }
-          } else if (b.type === "parity") {
-            if (number !== 0) {
-              const parity = number % 2 === 0 ? "even" : "odd";
-              if (b.value === parity) winnings += amt * 2;
-            }
-          } else if (b.type === "range") {
-            if (b.value === "low" && number >= 1 && number <= 18) winnings += amt * 2;
-            if (b.value === "high" && number >= 19 && number <= 36) winnings += amt * 2;
-          } else if (b.type === "dozen") {
-            const dozen = Math.ceil(number / 12);
-            if (number >= 1 && number <= 36 && dozen === b.value) winnings += amt * 3;
-          } else if (b.type === "column") {
-            if (number >= 1 && number <= 36) {
-              const rowPos = ((number - 1) % 3);
-              const colValue = rowPos === 0 ? 0 : rowPos === 1 ? 1 : 2;
-              const boardColumnValue = b.value;
-              if (
-                (boardColumnValue === 0 && rowPos === 0) ||
-                (boardColumnValue === 1 && rowPos === 1) ||
-                (boardColumnValue === 2 && rowPos === 2)
-              ) {
-                winnings += amt * 3;
-              }
-            }
-          }
-        }
-
-        this.balance += winnings;
-
-        for (const bet of this.bets) {
-          bet.chip.destroy();
-        }
-        this.bets = [];
-        this.betMap.clear();
-
-        this.isSpinning = false;
-        this.refreshHUD();
-      }
-
-      refreshHUD() {
-        const display = this.resultNumber === null ? "29" : String(this.resultNumber);
-        const resultColor =
-          this.resultNumber === 0 ? "#00ff66" :
-          this.resultNumber === null ? "#000000" :
-          this.redNumbers.has(this.resultNumber) ? "#ff3b2f" : "#ffffff";
-
-        this.hudResult.setText(display);
-        this.hudResult.setColor(resultColor);
-
-        this.hudBalance.setText("$" + this.balance);
-        this.hudChipValue.setText(String(this.currentChipValue));
-      }
+        const pocket = Phaser.Math.Between(0, 37);
+        const result = pocket === 37 ? "00" : pocket;
+        const isGreen = result === 0 || result === "00";
+        const color = isGreen
+            ? "GREEN"
+            : this.redNumbers.has(result) ? "RED" : "BLACK";
+        const resultColor = color === "RED"
+            ? "#ff2828"
+            : color === "GREEN" ? "#4cff4c" : "#ffffff";
+        this.pendingResult = { result, color, resultColor };
+        this.wheelAnimationDone = false;
+        this.ballAnimationDone = false;
+        this.wheel.setAngle(0).play("rouletteBallDrop", true);
+        this.animateRouletteBall(pocket);
     }
 
-    const config = {
-      type: Phaser.AUTO,
-      parent: "game",
-      width: 636,
-      height: 378,
-      backgroundColor: "#008400",
-      scene: [RouletteScene]
-    };
+    hasValidBet() {
+        return Number(this.wager ?? 0) > 0;
+    }
 
-    new Phaser.Game(config);
-  </script>
-</body>
-</html>
+    updateSpinButtonState() {
+        if (!this.spinButton) return;
+
+        const enabled = this.hasValidBet() && !this.isSpinning;
+        this.spinButton.setColor(enabled ? "#000000" : "#7f7f7f");
+        if (enabled) {
+            this.spinButton.setInteractive({ useHandCursor: true });
+        } else {
+            this.spinButton.disableInteractive();
+        }
+    }
+
+    hideWheelAndBall() {
+        if (!this.wheelLayer) return;
+
+        this.wheelLayer.setVisible(false);
+        this.wheel.stop().setVisible(false).disableInteractive();
+        this.ball.setVisible(false);
+    }
+
+    animateRouletteBall(result) {
+        const centerX = this.wheel.x;
+        const centerY = this.wheel.y;
+        const entryAngle = -0.35;
+        const outerX = centerX + Math.cos(entryAngle) * 290;
+        const outerY = centerY + Math.sin(entryAngle) * 165;
+
+        this.ball.setPosition(735, 105).setScale(0.75).setAlpha(0).setVisible(true);
+        this.tweens.add({
+            targets: this.ball,
+            x: outerX,
+            y: outerY,
+            scaleX: 1,
+            scaleY: 1,
+            alpha: 1,
+            duration: 550,
+            ease: "Quad.In",
+            onComplete: () => this.animateBallOrbit(result)
+        });
+    }
+
+    animateBallOrbit(result) {
+        const motion = { progress: 0 };
+        const startAngle = -0.35;
+
+        this.tweens.add({
+            targets: motion,
+            progress: 1,
+            duration: 2700,
+            ease: "Linear",
+            onUpdate: () => {
+                const angle = startAngle - motion.progress * Math.PI * 7;
+                const radiusX = Phaser.Math.Linear(290, 225, motion.progress);
+                const radiusY = Phaser.Math.Linear(165, 122, motion.progress);
+                const bounce = Math.sin(motion.progress * Math.PI * 18) * 4;
+                this.ball.setPosition(
+                    this.wheel.x + Math.cos(angle) * (radiusX + bounce),
+                    this.wheel.y + Math.sin(angle) * (radiusY + bounce)
+                );
+            },
+            onComplete: () => this.animateBallBounce(result)
+        });
+    }
+
+    animateBallBounce(result) {
+        const motion = { progress: 0 };
+        const startAngle = -0.35 - Math.PI * 7;
+        const landingAngle = (result / 36) * Math.PI * 2 - Math.PI / 2;
+
+        this.tweens.add({
+            targets: motion,
+            progress: 1,
+            duration: 1650,
+            ease: "Sine.InOut",
+            onUpdate: () => {
+                const angle = Phaser.Math.Linear(
+                    startAngle,
+                    landingAngle - Math.PI * 2,
+                    motion.progress
+                );
+                const jitter = Math.sin(motion.progress * Math.PI * 20) *
+                    14 * (1 - motion.progress);
+                const radiusX = Phaser.Math.Linear(225, 178, motion.progress) + jitter;
+                const radiusY = Phaser.Math.Linear(122, 92, motion.progress) + jitter * 0.45;
+                this.ball.setPosition(
+                    this.wheel.x + Math.cos(angle) * radiusX,
+                    this.wheel.y + Math.sin(angle) * radiusY
+                );
+            },
+            onComplete: () => {
+                this.ballAnimationDone = true;
+                this.finishSpinWhenReady();
+            }
+        });
+    }
+
+    finishSpinWhenReady() {
+        if (this.wheelAnimationDone && this.ballAnimationDone) {
+            this.finishSpin();
+        }
+    }
+
+    finishSpin() {
+        if (!this.isSpinning || !this.pendingResult) return;
+
+        this.wageredChips.forEach((chip) => chip.setVisible(true));
+        const { result, color, resultColor } = this.pendingResult;
+        const winningBets = this.bets.filter((bet) => bet.numbers.includes(result));
+        const profit = winningBets.reduce(
+            (total, bet) => total + bet.value * bet.payout,
+            0
+        );
+        const losses = this.bets
+            .filter((bet) => !bet.numbers.includes(result))
+            .reduce((total, bet) => total + bet.value, 0);
+        const net = profit - losses;
+        const outcome = net > 0 ? "WIN" : net < 0 ? "LOSE" : "PUSH";
+        this.resultText
+            .setColor(resultColor)
+            .setText(
+                `${result} ${color}\n${outcome} $${Math.abs(net).toLocaleString("en-US")}`
+            );
+
+        this.time.delayedCall(3000, () => this.settleBets(result, net));
+    }
+
+    settleBets(result, net) {
+        globalThis.STAKE = Math.max(0, Number(globalThis.STAKE ?? 0) + net);
+        this.navbar.setStake(globalThis.STAKE);
+
+        if (this.bets.length === 0) {
+            this.resetBettingRound();
+            return;
+        }
+
+        let remaining = this.bets.length;
+        this.bets.forEach((bet, index) => {
+            const won = bet.numbers.includes(result);
+            const lossTargetX = 748 + (index % 3) * 7;
+            const lossTargetY = 92 + Math.floor(index / 3) * 6;
+            this.tweens.add({
+                targets: bet.chip,
+                x: won ? bet.chip.getData("originalX") : lossTargetX,
+                y: won ? bet.chip.getData("originalY") : lossTargetY,
+                alpha: won ? 1 : 0,
+                scaleX: won ? 1 : 0.7,
+                scaleY: won ? 1 : 0.7,
+                duration: 700,
+                delay: index * 60,
+                ease: "Cubic.InOut",
+                onComplete: () => {
+                    remaining--;
+                    if (remaining === 0) this.resetBettingRound();
+                }
+            });
+        });
+    }
+
+    resetBettingRound() {
+        this.chipSprites.forEach((chip) => {
+            if (chip.active) chip.destroy();
+        });
+        this.chipSprites = [];
+        this.bankrollChipStacks = [];
+        this.wageredChips = [];
+        this.bets = [];
+        this.wager = 0;
+        this.pendingResult = null;
+        this.isSpinning = false;
+        this.hideWheelAndBall();
+        this.buildBankrollStacks();
+        this.resultText.setColor("#ffffff").setText("PLACE A BET");
+        this.updateSpinButtonState();
+    }
+}

@@ -1,45 +1,24 @@
 
 import { menuButtons } from "../config.js";
+import { Navbar } from "../ui/Navbar.js";
 
 export default class HubScene extends Phaser.Scene {
     constructor() { super("Hub"); }
     preload() {
-        this.load.path = '../assets/images/';
-        this.load.image('menu', 'menu.png');
-        this.load.image('bank', 'bank.png');
-        this.load.image('navBar', 'navbar.png');
+        this.load.image('menu', 'assets/images/menu.png');
+        this.load.image('bank', 'assets/images/bank.png');
+        Navbar.preload(this);
     }
 
     create() {
-        globalThis.STAKE ??= 0;
 
-        this.navBar = this.add.image(0, 0, 'navBar').setOrigin(0, 0);
-        this.menu = this.add.image(0, this.navBar.height, 'menu').setOrigin(0, 0);
+        globalThis.BANK_BALANCE ??= 5000;
+        globalThis.STAKE ??= 1000;
 
-        globalThis.GAMBLER_NAME ??= "";
-        this.add.text(
-            300,
-            this.navBar.height + 17,
-            `Gambler: ${globalThis.GAMBLER_NAME || "None"}`,
-            {
-                fontSize: '18px',
-                fontFamily: 'Tahoma',
-                fontStyle: 'bold',
-                color: '#ffffff'
-            }
-        ).setOrigin(0.5);
-
-        this.add.text(
-            650,
-            this.navBar.height + 17,
-            `Stake: ${this.formatDollars(globalThis.STAKE)}`,
-            {
-                fontSize: '18px',
-                fontFamily: 'Tahoma',
-                fontStyle: 'bold',
-                color: '#ffffff'
-            }
-        ).setOrigin(0.5);
+        //globalThis.GAMBLER_NAME ??= "";
+        globalThis.GAMBLER_NAME = "max";
+        this.navbar = new Navbar(this);
+        this.menu = this.add.image(0, this.navbar.height, 'menu').setOrigin(0, 0);
 
         this.buttons = this.add.group();
         this.noMoneyMessage = this.add.text(
@@ -59,7 +38,7 @@ export default class HubScene extends Phaser.Scene {
             .setDepth(1000)
             .setVisible(false);
 
-        menuButtons.forEach(item => {
+        menuButtons.slice(3).forEach(item => {
             const button = this.add.text(item.x, item.y, item.text, {
                 fontSize: '18px',
                 fontFamily: 'Tahoma',
@@ -95,10 +74,4 @@ export default class HubScene extends Phaser.Scene {
         });
     }
 
-    formatDollars(value) {
-        return Number(value).toLocaleString("en-US", {
-            style: "currency",
-            currency: "USD"
-        });
-    }
 }

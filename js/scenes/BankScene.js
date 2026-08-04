@@ -1,4 +1,6 @@
-let new_stake = 0;
+import { Navbar } from "../ui/Navbar.js";
+
+let new_bank_balance = 0;
 let new_gambler_name = "";
 
 export class BankScene extends Phaser.Scene {
@@ -9,18 +11,36 @@ export class BankScene extends Phaser.Scene {
     preload() {
         this.load.image("bankBackground", "assets/images/bank.png");
         this.load.image("newPlayer", "assets/images/new player.png");
-        this.load.image("bankNavBar", "assets/images/navbar.png");
+        this.load.image("changeStake", "assets/images/stakes.png");
+        Navbar.preload(this);
     }
 
     create() {
-        const navBar = this.add.image(0, 0, "bankNavBar").setOrigin(0, 0);
-        this.add.image(0, navBar.height, "bankBackground").setOrigin(0, 0);
+        // Scene restarts destroy display/DOM objects but retain this scene instance.
+        // Clear modal references so subsequent opens create fresh controls.
+        this.newGamblerWindow = null;
+        this.newGamblerNameInput = null;
+        this.bankDepositInput = null;
+        this.newGamblerOkButton = null;
+        this.newGamblerCancelButton = null;
+        this.newGamblerCloseButton = null;
+        this.changeStakeWindow = null;
+        this.changeStakeInput = null;
+        this.changeStakeOkButton = null;
+        this.changeStakeCancelButton = null;
+        this.stakeMessageBlocker = null;
+        this.stakeTooHighMessage = null;
+        this.stakeTooHighTimer = null;
 
         globalThis.GAMBLER_NAME ??= "";
         globalThis.STAKE ??= 0;
+        globalThis.BANK_BALANCE ??= 0;
+        this.navbar = new Navbar(this);
+        const navBarHeight = this.navbar.height;
+        this.add.image(0, navBarHeight, "bankBackground").setOrigin(0, 0);
         this.gamblerNameText = this.add.text(
             290,
-            navBar.height + 104,
+            navBarHeight + 104,
             globalThis.GAMBLER_NAME,
             {
                 fontFamily: "Arial, sans-serif",
@@ -28,10 +48,10 @@ export class BankScene extends Phaser.Scene {
                 color: "#000000"
             }
         );
-        this.stakeText = this.add.text(
+        this.bankBalanceText = this.add.text(
             590,
-            navBar.height + 104,
-            this.formatDollars(globalThis.STAKE),
+            navBarHeight + 104,
+            this.formatDollars(globalThis.BANK_BALANCE),
             {
                 fontFamily: "Arial, sans-serif",
                 fontSize: "18px",
@@ -39,8 +59,41 @@ export class BankScene extends Phaser.Scene {
             }
         );
 
+        this.sideStakeText = this.add.text(
+            20,
+            navBarHeight + 246,
+            `Stake: ${this.formatDollars(globalThis.STAKE)}`,
+            {
+                fontFamily: "Arial, sans-serif",
+                fontSize: "22px",
+                fontStyle: "bold",
+                color: "#43a832"
+            }
+        );
+
         // The controls are part of bank.png, so transparent zones make them clickable.
-        const newGamblerButton = this.add.zone(20, navBar.height + 148, 225, 35)
+        this.changeStakeButton = this.add.zone(20, navBarHeight + 96, 225, 35)
+            .setOrigin(0, 0);
+
+        this.changeStakeButton.on("pointerdown", () => {
+            this.showChangeStake();
+        });
+
+        this.changeStakeButtonLabel = this.add.text(
+            132,
+            navBarHeight + 113,
+            "Change Stake",
+            {
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontSize: "22px",
+                fontStyle: "bold",
+                color: "#000000"
+            }
+        ).setOrigin(0.5);
+
+        this.updateChangeStakeButtonState();
+
+        const newGamblerButton = this.add.zone(20, navBarHeight + 148, 225, 35)
             .setOrigin(0, 0)
             .setInteractive({ useHandCursor: true });
 
@@ -48,7 +101,7 @@ export class BankScene extends Phaser.Scene {
             this.showNewGambler();
         });
 
-        const returnButton = this.add.zone(20, navBar.height + 409, 225, 35)
+        const returnButton = this.add.zone(20, navBarHeight + 409, 225, 35)
             .setOrigin(0, 0)
             .setInteractive({ useHandCursor: true });
 
@@ -59,9 +112,9 @@ export class BankScene extends Phaser.Scene {
 
     showNewGambler() {
         if (this.newGamblerWindow) {
-            new_stake = globalThis.STAKE;
+            new_bank_balance = globalThis.BANK_BALANCE;
             new_gambler_name = globalThis.GAMBLER_NAME;
-            this.bankDepositInput.node.value = String(new_stake);
+            this.bankDepositInput.node.value = String(new_bank_balance);
             this.newGamblerNameInput.node.value = new_gambler_name;
             this.newGamblerWindow.setVisible(true);
             this.newGamblerNameInput.setVisible(true);
@@ -117,7 +170,7 @@ export class BankScene extends Phaser.Scene {
         });
         this.newGamblerNameInput.node.focus();
 
-        new_stake = globalThis.STAKE;
+        new_bank_balance = globalThis.BANK_BALANCE;
 
         this.bankDepositInput = this.add.dom(
             windowLeft + 20,
@@ -141,11 +194,11 @@ export class BankScene extends Phaser.Scene {
         this.bankDepositInput.node.type = "number";
         this.bankDepositInput.node.min = "0";
         this.bankDepositInput.node.step = "0.01";
-        this.bankDepositInput.node.value = String(new_stake);
+        this.bankDepositInput.node.value = String(new_bank_balance);
         this.bankDepositInput.node.setAttribute("aria-label", "Bank Deposit");
         this.bankDepositInput.node.addEventListener("input", (event) => {
             const deposit = event.target.valueAsNumber;
-            new_stake = Number.isFinite(deposit) ? deposit : 0;
+            new_bank_balance = Number.isFinite(deposit) ? deposit : 0;
         });
 
         this.newGamblerOkButton = this.add.zone(
@@ -158,10 +211,16 @@ export class BankScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         this.newGamblerOkButton.on("pointerdown", () => {
-            globalThis.STAKE = new_stake;
+            if (!Number.isFinite(new_bank_balance) || new_bank_balance < 0) return;
+
+            globalThis.BANK_BALANCE = new_bank_balance;
+            globalThis.STAKE = 0;
             globalThis.GAMBLER_NAME = new_gambler_name;
             this.gamblerNameText.setText(globalThis.GAMBLER_NAME);
-            this.stakeText.setText(this.formatDollars(globalThis.STAKE));
+            this.bankBalanceText.setText(this.formatDollars(globalThis.BANK_BALANCE));
+            this.sideStakeText.setText(`Stake: ${this.formatDollars(globalThis.STAKE)}`);
+            this.navbar.refreshAccount();
+            this.updateChangeStakeButtonState();
             this.hideNewGambler();
         });
 
@@ -175,7 +234,7 @@ export class BankScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         this.newGamblerCancelButton.on("pointerdown", () => {
-            new_stake = globalThis.STAKE;
+            new_bank_balance = globalThis.BANK_BALANCE;
             new_gambler_name = globalThis.GAMBLER_NAME;
             this.hideNewGambler();
         });
@@ -190,7 +249,7 @@ export class BankScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         this.newGamblerCloseButton.on("pointerdown", () => {
-            new_stake = globalThis.STAKE;
+            new_bank_balance = globalThis.BANK_BALANCE;
             new_gambler_name = globalThis.GAMBLER_NAME;
             this.hideNewGambler();
         });
@@ -203,6 +262,163 @@ export class BankScene extends Phaser.Scene {
         this.newGamblerOkButton.setVisible(false);
         this.newGamblerCancelButton.setVisible(false);
         this.newGamblerCloseButton.setVisible(false);
+    }
+
+    updateChangeStakeButtonState() {
+        const enabled = Number(globalThis.BANK_BALANCE) > 0;
+
+        if (enabled) {
+            this.changeStakeButton.setInteractive({ useHandCursor: true });
+        } else {
+            this.changeStakeButton.disableInteractive();
+        }
+
+        this.changeStakeButtonLabel
+            .setVisible(true)
+            .setColor(enabled ? "#000000" : "#7f7f7f");
+    }
+
+    showChangeStake() {
+        if (Number(globalThis.BANK_BALANCE) <= 0) return;
+
+        if (this.changeStakeWindow && this.changeStakeInput?.node) {
+            this.changeStakeInput.node.value = String(globalThis.STAKE);
+            this.changeStakeInput.node.max = String(globalThis.BANK_BALANCE);
+            this.changeStakeWindow.setVisible(true);
+            this.changeStakeInput.setVisible(true);
+            this.changeStakeOkButton.setVisible(true);
+            this.changeStakeCancelButton.setVisible(true);
+            this.children.bringToTop(this.changeStakeWindow);
+            this.children.bringToTop(this.changeStakeInput);
+            this.children.bringToTop(this.changeStakeOkButton);
+            this.children.bringToTop(this.changeStakeCancelButton);
+            this.changeStakeInput.node.focus();
+            return;
+        }
+
+        this.changeStakeWindow = this.add.image(
+            this.scale.width / 2,
+            this.scale.height / 2,
+            "changeStake"
+        ).setOrigin(0.5);
+
+        const windowLeft = this.changeStakeWindow.x - this.changeStakeWindow.displayWidth / 2;
+        const windowTop = this.changeStakeWindow.y - this.changeStakeWindow.displayHeight / 2;
+
+        this.changeStakeInput = this.add.dom(
+            windowLeft + 29,
+            windowTop + 271,
+            "input",
+            {
+                width: "422px",
+                height: "55px",
+                padding: "4px 8px",
+                border: "2px solid #557755",
+                boxSizing: "border-box",
+                backgroundColor: "#ffffff",
+                color: "#000000",
+                fontFamily: "Arial, sans-serif",
+                fontSize: "26px"
+            }
+        ).setOrigin(0, 0);
+
+        this.changeStakeInput.node.type = "number";
+        this.changeStakeInput.node.min = "0";
+        this.changeStakeInput.node.max = String(globalThis.BANK_BALANCE);
+        this.changeStakeInput.node.step = "0.01";
+        this.changeStakeInput.node.value = String(globalThis.STAKE);
+        this.changeStakeInput.node.setAttribute("aria-label", "New Stake");
+
+        this.changeStakeOkButton = this.add.zone(
+            windowLeft + 38,
+            windowTop + 365,
+            150,
+            50
+        )
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true });
+
+        this.changeStakeOkButton.on("pointerdown", () => {
+            const stake = this.changeStakeInput.node.valueAsNumber;
+            if (!Number.isFinite(stake) || stake < 0) return;
+
+            if (stake > globalThis.BANK_BALANCE) {
+                this.showStakeTooHighMessage();
+                return;
+            }
+
+            globalThis.STAKE = stake;
+            globalThis.BANK_BALANCE -= stake;
+            this.scene.restart();
+        });
+
+        this.changeStakeCancelButton = this.add.zone(
+            windowLeft + 292,
+            windowTop + 365,
+            151,
+            50
+        )
+            .setOrigin(0, 0)
+            .setInteractive({ useHandCursor: true });
+
+        this.changeStakeCancelButton.on("pointerdown", () => {
+            this.hideChangeStake();
+        });
+
+        this.changeStakeInput.node.focus();
+    }
+
+    hideChangeStake() {
+        this.changeStakeWindow.setVisible(false);
+        this.changeStakeInput.setVisible(false);
+        this.changeStakeOkButton.setVisible(false);
+        this.changeStakeCancelButton.setVisible(false);
+    }
+
+    showStakeTooHighMessage() {
+        this.hideChangeStake();
+
+        if (!this.stakeTooHighMessage) {
+            this.stakeMessageBlocker = this.add.zone(
+                0,
+                0,
+                this.scale.width,
+                this.scale.height
+            )
+                .setOrigin(0, 0)
+                .setDepth(1999)
+                .setInteractive();
+
+            this.stakeTooHighMessage = this.add.text(
+                this.scale.width / 2,
+                this.scale.height / 2,
+                "STAKE MUST BE LOWER THAN BALANCE, MORON!",
+                {
+                    fontFamily: "Arial, sans-serif",
+                    fontSize: "28px",
+                    fontStyle: "bold",
+                    color: "#ff0000",
+                    stroke: "#000000",
+                    strokeThickness: 5
+                }
+            )
+                .setOrigin(0.5)
+                .setDepth(2000);
+        } else {
+            this.stakeMessageBlocker.setVisible(true).setInteractive();
+            this.stakeTooHighMessage.setVisible(true);
+        }
+
+        if (this.stakeTooHighTimer) {
+            this.stakeTooHighTimer.remove(false);
+        }
+
+        this.stakeTooHighTimer = this.time.delayedCall(2000, () => {
+            this.stakeTooHighMessage.setVisible(false);
+            this.stakeMessageBlocker.setVisible(false).disableInteractive();
+            this.stakeTooHighTimer = null;
+            this.showChangeStake();
+        });
     }
 
     formatDollars(value) {

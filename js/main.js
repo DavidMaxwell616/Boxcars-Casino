@@ -2,6 +2,8 @@ import { SplashScene } from "./scenes/SplashScene.js";
 import HubScene from "./scenes/HubScene.js";
 import { BlackjackScene } from "./scenes/BlackJackScene.js";
 import { BankScene } from "./scenes/BankScene.js";
+import { RouletteScene } from "./scenes/RouletteScene.js";
+import { CrapsScene } from "./scenes/CrapsScene.js";
 
 const config = {
     type: Phaser.AUTO,
@@ -15,7 +17,9 @@ const config = {
         SplashScene,
         HubScene,
         BlackjackScene,
-        BankScene
+        BankScene,
+        RouletteScene,
+        CrapsScene
     ]
 };
 

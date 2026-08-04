@@ -48,3 +48,5 @@ export const menuButtons = [
     },
 
 ];
+
+export const navbarOptions = menuButtons.slice(0, 3);
