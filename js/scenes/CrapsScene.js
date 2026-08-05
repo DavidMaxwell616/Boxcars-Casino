@@ -7,10 +7,14 @@ export class CrapsScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image("crapsBackground", "assets/images/craps.jpg");
+        this.load.image("crapsBackground", "assets/images/craps.png");
         this.load.spritesheet("crapsChips", "assets/images/chips.png", {
             frameWidth: 30,
             frameHeight: 27
+        });
+        this.load.spritesheet("dice", "assets/images/dice.png", {
+            frameWidth: 75,
+            frameHeight: 75
         });
         this.load.audio("crapsShake", "assets/sounds/DIESHAK0.WAV");
         this.load.audio("crapsLand", "assets/sounds/DIEFLOOR.WAV");
@@ -30,11 +34,10 @@ export class CrapsScene extends Phaser.Scene {
         this.bankrollChipStacks = [];
         this.wageredChips = [];
 
-        // Crop the old title/menu bar; the shared navbar owns the top 62 pixels.
+        // Fit the full table artwork below the shared navbar.
         this.background = this.add.image(0, 62, "crapsBackground")
             .setOrigin(0, 0)
-            .setCrop(0, 39, 607, 436)
-            .setScale(800 / 607, 538 / 436);
+            .setDisplaySize(this.W, this.H);
 
         this.betZoneRect = new Phaser.Geom.Rectangle(76, 434, 458, 49);
         this.exitBtnRect = new Phaser.Geom.Rectangle(9, 564, 64, 27);
@@ -354,52 +357,72 @@ export class CrapsScene extends Phaser.Scene {
         this.rollText.setText("SHOOTING...");
         this.playSound("crapsShake");
 
-        const dieOne = Phaser.Math.Between(1, 6);
-        const dieTwo = Phaser.Math.Between(1, 6);
-        this.animateDice(dieOne, dieTwo, () => this.resolveRoll(dieOne, dieTwo));
+        this.animateDice((dieOne, dieTwo) => this.resolveRoll(dieOne, dieTwo));
     }
 
-    animateDice(finalOne, finalTwo, onComplete) {
-        this.dieOne.setPosition(650, 155).setAngle(0).setVisible(true);
-        this.dieTwo.setPosition(710, 125).setAngle(0).setVisible(true);
-
-        const tumble = this.time.addEvent({
-            delay: 75,
-            repeat: 10,
-            callback: () => {
-                this.drawDie(this.dieOne, Phaser.Math.Between(1, 6));
-                this.drawDie(this.dieTwo, Phaser.Math.Between(1, 6));
-            }
-        });
-
-        let completed = 0;
-        const landed = () => {
-            completed++;
-            if (completed < 2) return;
-            tumble.remove(false);
-            this.drawDie(this.dieOne, finalOne);
-            this.drawDie(this.dieTwo, finalTwo);
+    animateDice(onComplete) {
+        const results = [];
+        let stoppedDice = 0;
+        const stopped = (dieIndex, value) => {
+            results[dieIndex] = value;
+            stoppedDice++;
+            if (stoppedDice < 2) return;
             this.playSound("crapsLand");
-            onComplete();
+            onComplete(results[0], results[1]);
         };
 
-        this.tweens.add({
-            targets: this.dieOne,
-            x: 360,
-            y: 285,
-            angle: 720,
-            duration: 900,
-            ease: "Bounce.Out",
-            onComplete: landed
+        this.rollDieSprite(this.dieOne, 0, stopped);
+        this.rollDieSprite(this.dieTwo, 1, stopped);
+    }
+
+    rollDieSprite(die, dieIndex, onComplete) {
+        const leftBankX = 92;
+        const startX = 840 + dieIndex * 70;
+        const startY = dieIndex === 0 ? 225 : 365;
+        const bankY = Phaser.Math.Between(235, 385);
+        const stopX = leftBankX + Phaser.Math.Between(190, 500);
+        const stopY = Phaser.Math.Clamp(
+            bankY + Phaser.Math.Between(-70, 70),
+            205,
+            420
+        );
+        const finalFrame = Phaser.Math.Between(8, 13);
+        const spinDirection = dieIndex === 0 ? -1 : 1;
+
+        die.setPosition(startX, startY)
+            .setAngle(0)
+            .setFrame(Phaser.Math.Between(0, 7))
+            .setVisible(true);
+
+        const frameTimer = this.time.addEvent({
+            delay: Phaser.Math.Between(55, 85),
+            loop: true,
+            callback: () => die.setFrame(Phaser.Math.Between(0, 7))
         });
+
         this.tweens.add({
-            targets: this.dieTwo,
-            x: 445,
-            y: 320,
-            angle: -630,
-            duration: 1050,
-            ease: "Bounce.Out",
-            onComplete: landed
+            targets: die,
+            x: leftBankX,
+            y: bankY,
+            angle: spinDirection * Phaser.Math.Between(450, 720),
+            duration: Phaser.Math.Between(600, 780),
+            ease: "Cubic.In",
+            onComplete: () => {
+                this.playSound("crapsLand");
+                this.tweens.add({
+                    targets: die,
+                    x: stopX,
+                    y: stopY,
+                    angle: die.angle + spinDirection * Phaser.Math.Between(360, 630),
+                    duration: Phaser.Math.Between(650, 950),
+                    ease: "Cubic.Out",
+                    onComplete: () => {
+                        frameTimer.remove(false);
+                        die.setAngle(0).setFrame(finalFrame);
+                        onComplete(dieIndex, finalFrame - 7);
+                    }
+                });
+            }
         });
     }
 
@@ -547,30 +570,9 @@ export class CrapsScene extends Phaser.Scene {
     }
 
     createDie(x, y) {
-        const die = this.add.container(x, y).setDepth(40).setVisible(false);
-        this.drawDie(die, 1);
-        return die;
-    }
-
-    drawDie(die, value) {
-        die.removeAll(true);
-        const g = this.add.graphics();
-        g.fillStyle(0xffffff, 1);
-        g.lineStyle(3, 0xcc0000, 1);
-        g.fillRoundedRect(-30, -30, 60, 60, 9);
-        g.strokeRoundedRect(-30, -30, 60, 60, 9);
-        g.fillStyle(0xcc0000, 1);
-
-        const positions = {
-            1: [[0, 0]],
-            2: [[-15, -15], [15, 15]],
-            3: [[-15, -15], [0, 0], [15, 15]],
-            4: [[-15, -15], [15, -15], [-15, 15], [15, 15]],
-            5: [[-15, -15], [15, -15], [0, 0], [-15, 15], [15, 15]],
-            6: [[-15, -17], [15, -17], [-15, 0], [15, 0], [-15, 17], [15, 17]]
-        };
-        positions[value].forEach(([dotX, dotY]) => g.fillCircle(dotX, dotY, 5));
-        die.add(g);
+        return this.add.sprite(x, y, "dice", 8)
+            .setDepth(40)
+            .setVisible(false);
     }
 
     drawBevelButton(graphics, rect) {

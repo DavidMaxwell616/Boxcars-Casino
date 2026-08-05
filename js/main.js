@@ -4,6 +4,9 @@ import { BlackjackScene } from "./scenes/BlackJackScene.js";
 import { BankScene } from "./scenes/BankScene.js";
 import { RouletteScene } from "./scenes/RouletteScene.js";
 import { CrapsScene } from "./scenes/CrapsScene.js";
+import { SlotsScene } from "./scenes/SlotsScene.js";
+import { PokerScene } from "./scenes/PokerScene.js";
+import { BaccaratScene } from "./scenes/BaccaratScene.js";
 
 const config = {
     type: Phaser.AUTO,
@@ -19,7 +22,10 @@ const config = {
         BlackjackScene,
         BankScene,
         RouletteScene,
-        CrapsScene
+        CrapsScene,
+        SlotsScene,
+        PokerScene,
+        BaccaratScene
     ]
 };
 

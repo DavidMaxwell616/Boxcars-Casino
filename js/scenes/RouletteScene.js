@@ -347,7 +347,7 @@ export class RouletteScene extends Phaser.Scene {
         this.resultText
             .setColor("#ffffff")
             .setText(
-                `${bet.name.toUpperCase()}  $${bet.value}  (${bet.payout}:1)\n` +
+                `${bet.name.toUpperCase()}  $${bet.value}  (${bet.payout}:1)        ` +
                 `TOTAL BET: $${this.wager.toLocaleString("en-US")}`
             );
     }
