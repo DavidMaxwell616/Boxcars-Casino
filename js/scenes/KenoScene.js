@@ -144,7 +144,7 @@ export class KenoScene extends Phaser.Scene {
     }
 
     createTicketFields() {
-        this.spotsText = this.makeFieldText(this.toX(288), this.toY(72));
+        this.spotsText = this.makeFieldText(this.toX(288), this.toY(62));
         this.betText = this.makeFieldText(this.toX(253), this.toY(108));
         this.perGameText = this.makeFieldText(this.toX(323), this.toY(108));
         this.gamesText = this.makeFieldText(this.toX(253), this.toY(152));
