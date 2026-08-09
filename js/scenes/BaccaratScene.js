@@ -26,6 +26,7 @@ export class BaccaratScene extends Phaser.Scene {
         this.roundActive = false;
         this.cardSprites = [];
         globalThis.BACCARAT_COMMISSION_OWED ??= 0;
+        this.shoe = this.makeShoe();
 
         this.add.image(0, 62, "baccaratBackground")
             .setOrigin(0, 0)
@@ -140,8 +141,13 @@ export class BaccaratScene extends Phaser.Scene {
     }
 
     dealRound() {
+        if (this.roundActive || !this.wagerChip) return;
+        this.ensureShoe();
         const stake = Number(globalThis.STAKE ?? 0);
-        if (this.roundActive || stake < this.betAmount || !this.wagerChip) return;
+        if (stake < this.betAmount) {
+            this.updateDisplay();
+            return;
+        }
 
         this.roundActive = true;
         this.clearCards();
@@ -156,30 +162,45 @@ export class BaccaratScene extends Phaser.Scene {
 
         if (this.cache.audio.exists("baccaratDeal")) this.sound.play("baccaratDeal");
 
-        const deck = this.makeDeck();
-        const playerHand = [deck.pop(), deck.pop()];
-        const bankHand = [deck.pop(), deck.pop()];
+        const playerHand = [];
+        const bankHand = [];
+        const dealSequence = [];
+        for (let cardNumber = 0; cardNumber < 2; cardNumber++) {
+            const playerCard = this.shoe.pop();
+            playerHand.push(playerCard);
+            dealSequence.push({ card: playerCard, side: "player" });
+
+            const bankCard = this.shoe.pop();
+            bankHand.push(bankCard);
+            dealSequence.push({ card: bankCard, side: "bank" });
+        }
         const initialPlayerScore = this.handScore(playerHand);
         const initialBankScore = this.handScore(bankHand);
 
         if (initialPlayerScore < 8 && initialBankScore < 8) {
             let playerThird = null;
             if (initialPlayerScore < 6) {
-                playerThird = deck.pop();
+                playerThird = this.shoe.pop();
                 playerHand.push(playerThird);
+                dealSequence.push({ card: playerThird, side: "player" });
             }
-            if (this.bankDraws(initialBankScore, playerThird)) bankHand.push(deck.pop());
+            if (this.bankDraws(initialBankScore, playerThird)) {
+                const bankThird = this.shoe.pop();
+                bankHand.push(bankThird);
+                dealSequence.push({ card: bankThird, side: "bank" });
+            }
         }
 
-        let delay = 0;
-        delay = this.renderHand(bankHand, 390, 177, delay);
-        delay = this.renderHand(playerHand, 390, 402, delay);
+        const delay = this.renderDealSequence(dealSequence);
         this.time.delayedCall(delay + 350, () => this.finishRound(playerHand, bankHand));
     }
 
-    renderHand(hand, startX, y, initialDelay) {
-        hand.forEach((card, index) => {
-            const targetX = startX + index * 82;
+    renderDealSequence(dealSequence) {
+        const cardCounts = { player: 0, bank: 0 };
+        dealSequence.forEach(({ card, side }, index) => {
+            const targetX = 390 + cardCounts[side] * 82;
+            const targetY = side === "bank" ? 177 : 402;
+            cardCounts[side]++;
             const sprite = this.add.sprite(745, 105, "baccaratCards", this.getCardFrame(card))
                 .setScale(0.78)
                 .setAlpha(0)
@@ -188,14 +209,14 @@ export class BaccaratScene extends Phaser.Scene {
             this.tweens.add({
                 targets: sprite,
                 x: targetX,
-                y,
+                y: targetY,
                 alpha: 1,
                 duration: 280,
-                delay: initialDelay + index * 130,
+                delay: index * 130,
                 ease: "Cubic.Out"
             });
         });
-        return initialDelay + hand.length * 130;
+        return dealSequence.length * 130;
     }
 
     finishRound(playerHand, bankHand) {
@@ -253,11 +274,30 @@ export class BaccaratScene extends Phaser.Scene {
         return Number(card.rank);
     }
 
-    makeDeck() {
+    makeShoe(deckCount = 8) {
         const suits = ["D", "H", "C", "S"];
         const ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
-        const deck = suits.flatMap((suit) => ranks.map((rank) => ({ rank, suit })));
-        return Phaser.Utils.Array.Shuffle(deck);
+        const shoe = [];
+        for (let deckIndex = 0; deckIndex < deckCount; deckIndex++) {
+            suits.forEach((suit) => {
+                ranks.forEach((rank) => shoe.push({ rank, suit }));
+            });
+        }
+        return Phaser.Utils.Array.Shuffle(shoe);
+    }
+
+    ensureShoe() {
+        if (this.shoe.length >= 6) return;
+        this.collectCommission();
+        this.shoe = this.makeShoe();
+    }
+
+    collectCommission() {
+        const commission = Number(globalThis.BACCARAT_COMMISSION_OWED ?? 0);
+        if (commission <= 0) return;
+        globalThis.STAKE = Math.max(0, Number(globalThis.STAKE ?? 0) - commission);
+        globalThis.BACCARAT_COMMISSION_OWED = 0;
+        this.navbar?.setStake(globalThis.STAKE);
     }
 
     getCardFrame(card) {
@@ -299,9 +339,7 @@ export class BaccaratScene extends Phaser.Scene {
 
     exitScene() {
         if (this.roundActive) return;
-        const commission = Number(globalThis.BACCARAT_COMMISSION_OWED ?? 0);
-        globalThis.STAKE = Math.max(0, Number(globalThis.STAKE ?? 0) - commission);
-        globalThis.BACCARAT_COMMISSION_OWED = 0;
+        this.collectCommission();
         this.scene.start("Hub");
     }
 }

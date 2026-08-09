@@ -30,6 +30,17 @@ export class Navbar {
             button.on("pointerdown", () => {
                 this.scene.events.emit("navbar-option", item.text);
                 this.onOption?.(item.text);
+                if (item.text === "Keno" && this.scene.scene.key !== "KENO") {
+                    if (!this.scene.scene.isActive("KENO")) {
+                        this.scene.scene.launch("KENO", {
+                            parentSceneKey: this.scene.scene.key
+                        });
+                        this.scene.scene.pause();
+                    } else {
+                        const kenoScene = this.scene.scene.get("KENO");
+                        kenoScene?.openFrom(this.scene.scene.key);
+                    }
+                }
             });
 
             return button;
@@ -49,6 +60,13 @@ export class Navbar {
             color: "#000000"
         }).setOrigin(0.5).setDepth(1001);
 
+        this.kenoCountdownText = scene.add.text(285, 25, "", {
+            fontSize: "15px",
+            fontFamily: "Tahoma",
+            fontStyle: "bold",
+            color: "#000080"
+        }).setOrigin(0, 0.5).setDepth(1001);
+
         this.refreshAccount();
     }
 
@@ -60,9 +78,14 @@ export class Navbar {
         this.stakeText.setText(`Stake: ${this.formatDollars(value)}`);
     }
 
+    setKenoCountdown(value) {
+        this.kenoCountdownText.setText(value || "");
+    }
+
     refreshAccount() {
         this.setGambler(globalThis.GAMBLER_NAME);
         this.setStake(globalThis.STAKE ?? 0);
+        this.setKenoCountdown(globalThis.KENO_COUNTDOWN_TEXT ?? "");
     }
 
     formatDollars(value) {

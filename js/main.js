@@ -7,6 +7,7 @@ import { CrapsScene } from "./scenes/CrapsScene.js";
 import { SlotsScene } from "./scenes/SlotsScene.js";
 import { PokerScene } from "./scenes/PokerScene.js";
 import { BaccaratScene } from "./scenes/BaccaratScene.js";
+import { KenoScene } from "./scenes/KenoScene.js";
 
 const config = {
     type: Phaser.AUTO,
@@ -25,7 +26,8 @@ const config = {
         CrapsScene,
         SlotsScene,
         PokerScene,
-        BaccaratScene
+        BaccaratScene,
+        KenoScene
     ]
 };
 

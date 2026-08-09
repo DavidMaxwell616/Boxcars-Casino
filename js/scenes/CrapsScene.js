@@ -1,6 +1,8 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
 import { Navbar } from "../ui/Navbar.js";
 
+const TOTAL_PLAYERS = 4;
+
 export class CrapsScene extends Phaser.Scene {
     constructor() {
         super("CRAPS");
@@ -26,6 +28,7 @@ export class CrapsScene extends Phaser.Scene {
         this.H = 538;
         this.balance = Number(globalThis.STAKE ?? 0);
         this.betPlaced = 0;
+        this.selectedBetType = "pass";
         this.point = null;
         this.roundActive = false;
         this.rolling = false;
@@ -33,6 +36,17 @@ export class CrapsScene extends Phaser.Scene {
         this.chipSprites = [];
         this.bankrollChipStacks = [];
         this.wageredChips = [];
+        this.playerNames = ["YOU", "CPU 1", "CPU 2", "CPU 3"];
+        this.shooterIndex = Number.isInteger(globalThis.CRAPS_SHOOTER_INDEX)
+            ? globalThis.CRAPS_SHOOTER_INDEX % TOTAL_PLAYERS
+            : 0;
+        this.cpuPlayers = this.playerNames.slice(1).map((name) => ({
+            name,
+            balance: 1000,
+            betAmount: 20,
+            betType: "pass"
+        }));
+        this.cpuBetMarkers = [];
 
         // Fit the full table artwork below the shared navbar.
         this.background = this.add.image(0, 62, "crapsBackground")
@@ -40,19 +54,23 @@ export class CrapsScene extends Phaser.Scene {
             .setDisplaySize(this.W, this.H);
 
         this.betZoneRect = new Phaser.Geom.Rectangle(76, 434, 458, 49);
+        this.dontPassZoneRect = new Phaser.Geom.Rectangle(270, 384, 265, 43);
         this.exitBtnRect = new Phaser.Geom.Rectangle(9, 564, 64, 27);
         this.placeBtnRect = new Phaser.Geom.Rectangle(99, 558, 68, 38);
         this.shootBtnRect = new Phaser.Geom.Rectangle(190, 558, 91, 38);
         this.denomBtnRect = new Phaser.Geom.Rectangle(289, 558, 57, 38);
+        this.betTypeBtnRect = new Phaser.Geom.Rectangle(365, 558, 155, 38);
 
         const buttonGraphics = this.add.graphics().setDepth(20);
         this.drawBevelButton(buttonGraphics, this.exitBtnRect);
         this.drawBevelButton(buttonGraphics, this.placeBtnRect);
         this.drawBevelButton(buttonGraphics, this.shootBtnRect);
+        this.drawBevelButton(buttonGraphics, this.betTypeBtnRect);
 
         this.exitBtnText = this.makeButtonText(this.exitBtnRect, "Exit", 17);
         this.placeBtnText = this.makeButtonText(this.placeBtnRect, "Place", 17);
         this.shootBtnText = this.makeButtonText(this.shootBtnRect, "Shoot", 18);
+        this.betTypeBtnText = this.makeButtonText(this.betTypeBtnRect, "PASS LINE", 15);
         this.denomText = this.add.text(
             this.denomBtnRect.centerX,
             this.denomBtnRect.centerY,
@@ -67,7 +85,7 @@ export class CrapsScene extends Phaser.Scene {
             }
         ).setOrigin(0.5).setDepth(21);
 
-        this.betText = this.add.text(this.betZoneRect.centerX, 411, "", {
+        this.betText = this.add.text(this.betZoneRect.centerX, 345, "", {
             fontFamily: "Arial",
             fontSize: "23px",
             fontStyle: "bold",
@@ -104,20 +122,42 @@ export class CrapsScene extends Phaser.Scene {
             align: "center"
         }).setOrigin(0.5).setDepth(100);
 
+        this.add.rectangle(690, 245, 190, 116, 0x003d00, 0.82)
+            .setStrokeStyle(2, 0xffffff, 0.8)
+            .setDepth(22);
+        this.playerTexts = this.playerNames.map((name, index) => this.add.text(
+            603,
+            201 + index * 27,
+            name,
+            {
+                fontFamily: "Arial",
+                fontSize: "14px",
+                fontStyle: "bold",
+                color: "#ffffff"
+            }
+        ).setDepth(23));
+
         this.dieOne = this.createDie(650, 155);
         this.dieTwo = this.createDie(710, 125);
         this.buildBankrollStacks();
         this.selectFirstAvailableDenomination();
+        this.setupCpuBets();
 
         this.input.on("pointerdown", (pointer) => {
             if (Phaser.Geom.Rectangle.Contains(this.exitBtnRect, pointer.x, pointer.y)) {
-                this.scene.start("Hub");
+                if (!this.roundActive && !this.rolling && !this.roundSettling) {
+                    this.scene.start("Hub");
+                } else {
+                    this.rollText.setText("FINISH THE CURRENT CONTRACT BEFORE EXITING");
+                }
             } else if (Phaser.Geom.Rectangle.Contains(this.placeBtnRect, pointer.x, pointer.y)) {
                 this.placeSelectedChip();
             } else if (Phaser.Geom.Rectangle.Contains(this.shootBtnRect, pointer.x, pointer.y)) {
                 this.shootDice();
             } else if (Phaser.Geom.Rectangle.Contains(this.denomBtnRect, pointer.x, pointer.y)) {
                 this.cycleDenomination();
+            } else if (Phaser.Geom.Rectangle.Contains(this.betTypeBtnRect, pointer.x, pointer.y)) {
+                this.cycleBetType();
             }
         });
         this.input.keyboard.on("keydown-SPACE", () => this.shootDice());
@@ -136,13 +176,12 @@ export class CrapsScene extends Phaser.Scene {
     }
 
     buildBankrollStacks() {
-        const stake = Number(globalThis.STAKE ?? 0);
-        if (!Number.isSafeInteger(stake) || stake <= 0) return;
-
         this.chipFrames = new Map([
             [5, 0], [10, 1], [20, 2], [50, 3],
             [100, 4], [500, 5], [1000, 6], [5000, 7]
         ]);
+        const stake = Number(globalThis.STAKE ?? 0);
+        if (!Number.isSafeInteger(stake) || stake <= 0) return;
 
         let distribution;
         try {
@@ -186,7 +225,7 @@ export class CrapsScene extends Phaser.Scene {
     }
 
     makeBankrollChipDraggable(chip) {
-        if (!chip || this.roundActive || this.roundSettling) return;
+        if (!chip || !this.canAddWager()) return;
 
         chip.setInteractive({ useHandCursor: true });
         this.input.setDraggable(chip);
@@ -197,8 +236,7 @@ export class CrapsScene extends Phaser.Scene {
         chip.on("dragstart", () => this.children.bringToTop(chip));
         chip.on("drag", (pointer, dragX, dragY) => chip.setPosition(dragX, dragY));
         chip.on("dragend", () => {
-            const droppedInBetZone = Phaser.Geom.Rectangle.Contains(
-                this.betZoneRect,
+            const droppedBetType = this.getBetTypeAt(
                 chip.x,
                 chip.y - chip.displayHeight / 2
             );
@@ -226,12 +264,36 @@ export class CrapsScene extends Phaser.Scene {
                 return;
             }
 
-            if (!droppedInBetZone || this.roundActive || this.roundSettling) {
+            if (!droppedBetType || !this.canAddWager()) {
                 chip.setPosition(chip.getData("originalX"), chip.getData("originalY"));
                 return;
             }
+            if (this.wageredChips.length > 0 && droppedBetType !== this.selectedBetType) {
+                chip.setPosition(chip.getData("originalX"), chip.getData("originalY"));
+                this.rollText.setText("ONE LINE BET TYPE PER CONTRACT");
+                return;
+            }
+            this.selectedBetType = droppedBetType;
             this.commitWagerChip(chip);
         });
+    }
+
+    getBetTypeAt(x, y) {
+        if (Phaser.Geom.Rectangle.Contains(this.betZoneRect, x, y)) return "pass";
+        if (Phaser.Geom.Rectangle.Contains(this.dontPassZoneRect, x, y)) return "dontPass";
+        return null;
+    }
+
+    getSelectedBetZone() {
+        return this.selectedBetType === "dontPass"
+            ? this.dontPassZoneRect
+            : this.betZoneRect;
+    }
+
+    canAddWager() {
+        return !this.rolling
+            && !this.roundSettling
+            && (!this.roundActive || (this.point !== null && this.selectedBetType === "pass"));
     }
 
     commitWagerChip(chip) {
@@ -239,9 +301,10 @@ export class CrapsScene extends Phaser.Scene {
 
         chip.disableInteractive();
         const wagerIndex = this.wageredChips.length;
+        const zone = this.getSelectedBetZone();
         chip.setPosition(
-            this.betZoneRect.centerX - 25 + (wagerIndex % 6) * 10,
-            this.betZoneRect.centerY + 8 - Math.floor(wagerIndex / 6) * 6
+            zone.centerX - 25 + (wagerIndex % 6) * 10,
+            zone.centerY + 8 - Math.floor(wagerIndex / 6) * 6
         );
         chip.setData({ betX: chip.x, betY: chip.y });
         this.betPlaced += chip.getData("value");
@@ -283,16 +346,17 @@ export class CrapsScene extends Phaser.Scene {
     }
 
     layoutWageredChips() {
+        const zone = this.getSelectedBetZone();
         this.wageredChips.forEach((chip, index) => {
-            const betX = this.betZoneRect.centerX - 25 + (index % 6) * 10;
-            const betY = this.betZoneRect.centerY + 8 - Math.floor(index / 6) * 6;
+            const betX = zone.centerX - 25 + (index % 6) * 10;
+            const betY = zone.centerY + 8 - Math.floor(index / 6) * 6;
             chip.setData({ betX, betY });
             chip.setPosition(betX, betY);
         });
     }
 
     placeSelectedChip() {
-        if (this.roundActive || this.roundSettling || this.rolling) return;
+        if (!this.canAddWager()) return;
         const chip = this.findTopAvailableChip(this.selectedDenomination);
         if (!chip) {
             this.rollText.setText("NO CHIP OF THAT VALUE AVAILABLE");
@@ -302,8 +366,8 @@ export class CrapsScene extends Phaser.Scene {
         chip.disableInteractive();
         this.tweens.add({
             targets: chip,
-            x: this.betZoneRect.centerX,
-            y: this.betZoneRect.centerY + 8,
+            x: this.getSelectedBetZone().centerX,
+            y: this.getSelectedBetZone().centerY + 8,
             duration: 350,
             ease: "Cubic.Out",
             onComplete: () => this.commitWagerChip(chip)
@@ -340,11 +404,67 @@ export class CrapsScene extends Phaser.Scene {
     }
 
     cycleDenomination() {
-        if (this.roundActive || this.roundSettling) return;
+        if (!this.canAddWager()) return;
         const values = this.availableDenominations();
         if (values.length === 0) return;
         const index = values.indexOf(this.selectedDenomination);
         this.selectDenomination(values[(index + 1) % values.length]);
+    }
+
+    cycleBetType() {
+        if (this.roundActive || this.roundSettling || this.wageredChips.length > 0) return;
+        this.selectedBetType = this.selectedBetType === "pass" ? "dontPass" : "pass";
+        this.betTypeBtnText.setText(
+            this.selectedBetType === "pass" ? "PASS LINE" : "DON'T PASS"
+        );
+        this.updateTexts();
+    }
+
+    setupCpuBets() {
+        this.cpuBetMarkers.forEach((marker) => marker.destroy());
+        this.cpuBetMarkers = [];
+        this.cpuPlayers.forEach((player) => {
+            player.betAmount = Math.min(20, player.balance);
+            player.betType = Phaser.Math.Between(1, 100) <= 70 ? "pass" : "dontPass";
+        });
+        this.cpuPlayers.forEach((player, index) => {
+            if (player.betAmount <= 0) return;
+            const zone = player.betType === "pass" ? this.betZoneRect : this.dontPassZoneRect;
+            const chip = this.add.sprite(
+                zone.right - 25 - index * 27,
+                zone.centerY + 7,
+                "crapsChips",
+                this.chipFrames.get(20)
+            ).setOrigin(0.5, 1).setDepth(28);
+            const label = this.add.text(chip.x, chip.y - 14, `${index + 1}`, {
+                fontFamily: "Arial",
+                fontSize: "11px",
+                fontStyle: "bold",
+                color: "#ffffff",
+                stroke: "#000000",
+                strokeThickness: 2
+            }).setOrigin(0.5).setDepth(29);
+            this.cpuBetMarkers.push(chip, label);
+        });
+        this.updatePlayerTexts();
+    }
+
+    updatePlayerTexts() {
+        this.playerTexts?.forEach((text, index) => {
+            const isShooter = index === this.shooterIndex;
+            if (index === 0) {
+                const betName = this.selectedBetType === "pass" ? "PASS" : "DON'T PASS";
+                text.setText(`${isShooter ? "► " : ""}YOU • ${betName} $${this.betPlaced}`);
+            } else {
+                const player = this.cpuPlayers[index - 1];
+                const betName = player.betType === "pass" ? "PASS" : "DON'T";
+                text.setText(
+                    `${isShooter ? "► " : ""}${player.name} $${player.balance} • ` +
+                    `${betName} $${player.betAmount}`
+                );
+            }
+            text.setColor(isShooter ? "#ffff00" : "#ffffff");
+        });
     }
 
     shootDice() {
@@ -432,36 +552,62 @@ export class CrapsScene extends Phaser.Scene {
 
         if (this.point === null) {
             if (total === 7 || total === 11) {
-                this.endRound(`${total} — PASS LINE WINS!`, "win");
+                this.endRound(`${total} — PASS LINE WINS!`, {
+                    pass: "win",
+                    dontPass: "loss"
+                });
                 return;
             }
-            if (total === 2 || total === 3 || total === 12) {
-                this.endRound(`${total} — CRAPS!`, "loss");
+            if (total === 2 || total === 3) {
+                this.endRound(`${total} — CRAPS! DON'T PASS WINS`, {
+                    pass: "loss",
+                    dontPass: "win"
+                });
+                return;
+            }
+            if (total === 12) {
+                this.endRound("12 — CRAPS! DON'T PASS PUSHES", {
+                    pass: "loss",
+                    dontPass: "push"
+                });
                 return;
             }
             this.point = total;
             this.pointText.setText(`POINT: ${this.point}`);
             this.rollText.setText(`POINT IS ${this.point} — SHOOT AGAIN`);
         } else if (total === this.point) {
-            this.endRound(`${total} — POINT MADE!`, "win");
+            this.endRound(`${total} — POINT MADE!`, {
+                pass: "win",
+                dontPass: "loss"
+            });
             return;
         } else if (total === 7) {
-            this.endRound("SEVEN OUT!", "loss");
+            this.endRound("SEVEN OUT! DON'T PASS WINS", {
+                pass: "loss",
+                dontPass: "win"
+            }, true);
             return;
         } else {
             this.rollText.setText(`ROLLED ${total} — POINT IS ${this.point}`);
         }
 
+        this.enableAvailableBankrollChips();
         this.updateTexts();
     }
 
-    endRound(message, outcome) {
+    endRound(message, outcomes, rotateShooter = false) {
         this.roundSettling = true;
         this.rolling = false;
+        const outcome = outcomes[this.selectedBetType];
         if (outcome === "win") {
             globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.betPlaced;
             this.balance = Number(globalThis.STAKE);
             this.navbar.setStake(this.balance);
+        }
+        this.settleCpuBets(outcomes);
+        if (rotateShooter) {
+            this.shooterIndex = (this.shooterIndex + 1) % TOTAL_PLAYERS;
+            globalThis.CRAPS_SHOOTER_INDEX = this.shooterIndex;
         }
 
         this.messageText.setText(message);
@@ -470,6 +616,15 @@ export class CrapsScene extends Phaser.Scene {
             this.messageText.setText("");
             this.settleWager(outcome);
         });
+    }
+
+    settleCpuBets(outcomes) {
+        this.cpuPlayers.forEach((player) => {
+            const outcome = outcomes[player.betType];
+            if (outcome === "win") player.balance += player.betAmount;
+            else if (outcome === "loss") player.balance = Math.max(0, player.balance - player.betAmount);
+        });
+        this.updatePlayerTexts();
     }
 
     settleWager(outcome) {
@@ -490,6 +645,7 @@ export class CrapsScene extends Phaser.Scene {
                     y: chip.getData("originalY"),
                     alpha: 1
                 });
+                if (outcome !== "win") return;
                 const payout = this.add.sprite(
                     chip.x,
                     chip.y,
@@ -545,9 +701,10 @@ export class CrapsScene extends Phaser.Scene {
         this.dieTwo.setVisible(false);
         this.buildBankrollStacks();
         this.selectFirstAvailableDenomination();
+        this.setupCpuBets();
         this.navbar.setStake(this.balance);
         this.pointText.setText("COME-OUT ROLL");
-        this.rollText.setText("PLACE A PASS LINE BET");
+        this.rollText.setText("PLACE A LINE BET");
         this.updateTexts();
     }
 
@@ -557,15 +714,33 @@ export class CrapsScene extends Phaser.Scene {
         });
     }
 
+    enableAvailableBankrollChips() {
+        if (!this.canAddWager()) return;
+        this.bankrollChipStacks.forEach((stack) => {
+            const topChip = [...stack].reverse().find(
+                (chip) => chip.active && !this.wageredChips.includes(chip)
+            );
+            this.makeBankrollChipDraggable(topChip);
+        });
+    }
+
     updateTexts() {
-        this.betText.setText(`PASS LINE BET: $${this.betPlaced.toLocaleString("en-US")}`);
+        const betName = this.selectedBetType === "pass" ? "PASS LINE" : "DON'T PASS";
+        this.betText.setText(`${betName} BET: $${this.betPlaced.toLocaleString("en-US")}`);
+        this.betTypeBtnText.setText(betName);
         const canShoot = this.betPlaced > 0 && !this.rolling && !this.roundSettling;
         this.shootBtnText.setColor(canShoot ? "#000000" : "#7f7f7f");
-        const canPlace = !this.roundActive && !this.roundSettling && !this.rolling;
+        const canPlace = this.canAddWager();
         this.placeBtnText.setColor(canPlace ? "#000000" : "#7f7f7f");
+        this.betTypeBtnText.setColor(
+            canPlace && this.wageredChips.length === 0 ? "#000000" : "#7f7f7f"
+        );
+        this.updatePlayerTexts();
 
         if (this.betPlaced === 0 && !this.roundActive && !this.roundSettling) {
-            this.rollText.setText("PLACE A PASS LINE BET");
+            this.rollText.setText(
+                `${this.playerNames[this.shooterIndex]} HAS THE DICE — PLACE A LINE BET`
+            );
         }
     }
 

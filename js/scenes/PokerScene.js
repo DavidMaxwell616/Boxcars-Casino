@@ -10,6 +10,8 @@ const POKER_GAMES = [
 ];
 
 const FIXED_GAMES = POKER_GAMES.slice(0, 4);
+const TOTAL_PLAYERS = 4;
+const COMPUTER_PLAYERS = TOTAL_PLAYERS - 1;
 
 const GAME_RULES = {
     "Five-Card Draw": "5 private cards • draw poker • best 5-card hand",
@@ -47,9 +49,17 @@ export class PokerScene extends Phaser.Scene {
         this.roundActive = false;
         this.littleBlind = 5;
         this.bigBlind = 10;
+        this.dealerIndex = Number.isInteger(globalThis.POKER_DEALER_INDEX)
+            ? globalThis.POKER_DEALER_INDEX % TOTAL_PLAYERS
+            : 0;
+        this.seatNames = ["YOU", "CPU 1", "CPU 2", "CPU 3"];
         this.betPlaced = 0;
         this.cardSprites = [];
+        this.handLabels = [];
+        this.seatLabels = Array(TOTAL_PLAYERS).fill(null);
         this.chipSprites = [];
+        this.potChipSprites = [];
+        this.potChipValues = [];
         this.bankrollChipStacks = [];
         this.wageredChips = [];
         this.potZone = new Phaser.Geom.Circle(400, 331, 58);
@@ -217,7 +227,7 @@ export class PokerScene extends Phaser.Scene {
             backgroundColor: "#ffffffcc",
             padding: { x: 5, y: 3 }
         });
-        this.potText = this.add.text(400, 300, "BET: $0", {
+        this.potText = this.add.text(400, 300, "ANTE: $0", {
             fontFamily: "Arial",
             fontSize: "22px",
             fontStyle: "bold",
@@ -225,7 +235,7 @@ export class PokerScene extends Phaser.Scene {
             stroke: "#555555",
             strokeThickness: 5
         }).setOrigin(0.5);
-        this.resultText = this.add.text(400, 405, "Drag chips to the pot", {
+        this.resultText = this.add.text(400, 405, "Drag chips to ante", {
             fontFamily: "Arial",
             fontSize: "20px",
             fontStyle: "bold",
@@ -241,6 +251,12 @@ export class PokerScene extends Phaser.Scene {
         });
         this.exitButton = this.makeGameButton(698, 240, "EXIT", () => {
             if (!this.roundActive) this.scene.start("Hub");
+        });
+        this.foldButton = this.makeGameButton(225, 570, "FOLD", () => this.playerAction("fold"));
+        this.callButton = this.makeGameButton(355, 570, "CALL", () => this.playerAction("call"));
+        this.raiseButton = this.makeGameButton(495, 570, "RAISE", () => this.playerAction("raise"));
+        [this.foldButton, this.callButton, this.raiseButton].forEach((button) => {
+            button.setVisible(false);
         });
         this.blindText = this.add.text(698, 275, "", {
             fontFamily: "Arial",
@@ -260,7 +276,10 @@ export class PokerScene extends Phaser.Scene {
             this.dealButton,
             this.settingsButton,
             this.exitButton,
-            this.blindText
+            this.blindText,
+            this.foldButton,
+            this.callButton,
+            this.raiseButton
         ]);
         this.buildChipStacks();
         this.updateRuleText();
@@ -288,9 +307,12 @@ export class PokerScene extends Phaser.Scene {
             `${GAME_RULES[activeGame] ?? "Dealer selects a game each hand"}` +
             (this.wildCards ? " • DEUCES WILD" : "")
         );
-        this.blindText.setText(activeGame === "Hold 'Em"
-            ? `LITTLE BLIND: $${this.littleBlind}\nBIG BLIND: $${this.bigBlind}`
-            : "");
+        const { littleBlindIndex, bigBlindIndex } = this.getBlindPositions();
+        this.blindText.setText(
+            `DEALER: ${this.seatNames[this.dealerIndex]}\n` +
+            `SB: ${this.seatNames[littleBlindIndex]} $${this.littleBlind}\n` +
+            `BB: ${this.seatNames[bigBlindIndex]} $${this.bigBlind}`
+        );
         if (!this.roundActive) this.updateWagerDisplay();
     }
 
@@ -430,9 +452,26 @@ export class PokerScene extends Phaser.Scene {
         if (!this.potText || this.roundActive) return;
         const holdem = this.selectedGame === "Hold 'Em";
         this.potText.setText(holdem
-            ? `BET: $${this.betPlaced}  •  SB $${this.littleBlind} / BB $${this.bigBlind}`
-            : `BET: $${this.betPlaced}`);
-        this.dealButton?.setText(this.betPlaced > 0 ? `DEAL $${this.betPlaced}` : "DEAL");
+            ? `ANTE: $${this.betPlaced}  •  SB $${this.littleBlind} / BB $${this.bigBlind}`
+            : `ANTE: $${this.betPlaced}`);
+        this.dealButton?.setText(this.betPlaced > 0
+            ? `ANTE/DEAL $${this.betPlaced}`
+            : "DEAL");
+    }
+
+    getBlindPositions() {
+        return {
+            littleBlindIndex: (this.dealerIndex + 1) % TOTAL_PLAYERS,
+            bigBlindIndex: (this.dealerIndex + 2) % TOTAL_PLAYERS
+        };
+    }
+
+    getSeatRole(index) {
+        const { littleBlindIndex, bigBlindIndex } = this.getBlindPositions();
+        if (index === this.dealerIndex) return "D";
+        if (index === littleBlindIndex) return "SB";
+        if (index === bigBlindIndex) return "BB";
+        return "";
     }
 
     dealHand() {
@@ -442,44 +481,45 @@ export class PokerScene extends Phaser.Scene {
             ? Phaser.Utils.Array.GetRandom(FIXED_GAMES)
             : this.selectedGame;
         const stake = Number(globalThis.STAKE ?? 0);
-        const minimumBet = activeGame === "Hold 'Em" ? this.bigBlind : 5;
-        if (this.betPlaced < minimumBet) {
+        const minimumAnte = activeGame === "Hold 'Em" ? this.bigBlind : 5;
+        if (this.betPlaced < minimumAnte) {
             this.updateRuleText(activeGame);
-            this.resultText.setText(activeGame === "Hold 'Em"
-                ? `Post/call the $${this.bigBlind} big blind to deal`
-                : `Drag at least $${minimumBet} in chips to the pot`);
+            this.resultText.setText(`Drag at least $${minimumAnte} in chips to ante`);
             return;
         }
         if (stake < this.betPlaced) {
-            this.resultText.setText("Not enough stake for that wager");
+            this.resultText.setText("Not enough stake for that ante");
             return;
         }
 
-        this.currentWager = this.betPlaced;
-        this.currentPot = this.currentWager * 2;
+        if (!this.postAntes(this.betPlaced, stake)) return;
         this.roundActive = true;
         this.clearCards();
-        globalThis.STAKE = stake - this.currentWager;
         this.navbar.setStake(globalThis.STAKE);
         this.buildChipStacks();
+        this.renderPotChips();
         this.updateGameButtons();
-        this.potText.setText(`POT: $${this.currentPot}`);
-        this.resultText.setText(activeGame === "Hold 'Em"
-            ? `LITTLE BLIND $${this.littleBlind} • BIG BLIND $${this.bigBlind}\nDEALING...`
-            : "DEALING...");
+        this.potText.setText(`POT: $${this.currentPot} • ANTES + BLINDS`);
+        this.resultText.setText(
+            `ALL ${TOTAL_PLAYERS} PLAYERS ANTE $${this.currentAnte}\n` +
+            `${this.seatNames[this.littleBlindIndex]} POSTS SB • ` +
+            `${this.seatNames[this.bigBlindIndex]} POSTS BB\nDEALING...`
+        );
         if (this.cache.audio.exists("pokerOpen")) this.sound.play("pokerOpen");
 
         this.activeGame = activeGame;
         this.updateRuleText(activeGame);
 
         const deck = this.makeDeck();
-        const playerCount = activeGame === "Seven-Card Stud" ? 7
+        const cardsPerPlayer = activeGame === "Seven-Card Stud" ? 7
             : activeGame === "Hold 'Em" ? 2
                 : 5;
-        const opponentCount = playerCount;
         const communityCount = activeGame === "Hold 'Em" ? 5 : 0;
-        this.playerHand = this.takeCards(deck, playerCount);
-        this.opponentHand = this.takeCards(deck, opponentCount);
+        this.playerHand = this.takeCards(deck, cardsPerPlayer);
+        this.opponentHands = Array.from(
+            { length: COMPUTER_PLAYERS },
+            () => this.takeCards(deck, cardsPerPlayer)
+        );
         this.communityCards = this.takeCards(deck, communityCount);
 
         const opponentVisibility = activeGame === "Five-Card Stud"
@@ -489,14 +529,367 @@ export class PokerScene extends Phaser.Scene {
                 : false;
 
         let delay = 0;
-        delay = this.renderCards(this.opponentHand, 90, 145, opponentVisibility, delay);
-        delay = this.renderCards(this.communityCards, 170, 265, true, delay);
-        delay = this.renderCards(this.playerHand, 90, 495, true, delay);
-        this.time.delayedCall(delay + 450, () => this.showdown());
+        const opponentStarts = [18, 214, 410];
+        const opponentSpacing = cardsPerPlayer >= 7 ? 22 : 30;
+        this.opponentHands.forEach((hand, index) => {
+            this.addHandLabel(
+                `CPU ${index + 1} ${this.getSeatRole(index + 1)} • ANTE $${this.playerAntes[index + 1]}`,
+                opponentStarts[index],
+                108,
+                index + 1
+            );
+            delay = this.renderCards(
+                hand,
+                opponentStarts[index],
+                160,
+                opponentVisibility,
+                delay,
+                opponentSpacing,
+                0.55,
+                "opponent",
+                index + 1
+            );
+        });
+        delay = this.renderCards(
+            this.communityCards,
+            170,
+            265,
+            false,
+            delay,
+            undefined,
+            0.72,
+            "community"
+        );
+        this.addHandLabel(`YOU ${this.getSeatRole(0)} • ANTE $${this.playerAntes[0]}`, 90, 450, 0);
+        delay = this.renderCards(this.playerHand, 90, 495, true, delay, undefined, 0.72, "player", 0);
+        this.time.delayedCall(delay + 450, () => this.startBettingRound(true));
     }
 
-    renderCards(cards, startX, y, visibility, initialDelay) {
-        const spacing = cards.length >= 7 ? 55 : 70;
+    postAntes(ante, stake) {
+        this.playerAntes = Array(TOTAL_PLAYERS).fill(ante);
+        if (!this.playerAntes.every((amount) => amount > 0)) {
+            this.resultText.setText("Every player must ante before the deal");
+            return false;
+        }
+        const { littleBlindIndex, bigBlindIndex } = this.getBlindPositions();
+        this.littleBlindIndex = littleBlindIndex;
+        this.bigBlindIndex = bigBlindIndex;
+        const playerBlind = littleBlindIndex === 0
+            ? this.littleBlind
+            : bigBlindIndex === 0 ? this.bigBlind : 0;
+        const requiredStake = ante + playerBlind;
+        if (stake < requiredStake) {
+            this.resultText.setText(`You need $${requiredStake} to cover the ante and blind`);
+            return false;
+        }
+        this.currentAnte = ante;
+        this.folded = Array(TOTAL_PLAYERS).fill(false);
+        this.handContributions = [...this.playerAntes];
+        this.roundBets = Array(TOTAL_PLAYERS).fill(0);
+        this.roundBets[littleBlindIndex] = this.littleBlind;
+        this.roundBets[bigBlindIndex] = this.bigBlind;
+        this.handContributions[littleBlindIndex] += this.littleBlind;
+        this.handContributions[bigBlindIndex] += this.bigBlind;
+        const anteChipValues = this.wageredChips.map((chip) => chip.getData("value"));
+        this.potChipValues = Array.from(
+            { length: TOTAL_PLAYERS },
+            () => [...anteChipValues]
+        ).flat();
+        this.potChipValues.push(
+            ...this.chipValuesForAmount(this.littleBlind),
+            ...this.chipValuesForAmount(this.bigBlind)
+        );
+        this.currentBet = this.bigBlind;
+        this.currentPot = this.handContributions.reduce((total, amount) => total + amount, 0);
+        globalThis.STAKE = stake - requiredStake;
+        return true;
+    }
+
+    getBettingRoundNames() {
+        return {
+            "Five-Card Draw": ["OPENING BET", "DRAW BET"],
+            "Five-Card Stud": ["SECOND STREET", "THIRD STREET", "FOURTH STREET", "FIFTH STREET"],
+            "Seven-Card Stud": ["THIRD STREET", "FOURTH STREET", "FIFTH STREET", "SIXTH STREET", "RIVER"],
+            "Hold 'Em": ["PRE-FLOP", "FLOP", "TURN", "RIVER"]
+        }[this.activeGame] ?? ["BETTING ROUND"];
+    }
+
+    startBettingRound(preflop = false) {
+        if (!this.roundActive) return;
+        if (preflop) {
+            this.bettingRoundIndex = 0;
+        } else {
+            this.bettingRoundIndex++;
+            this.roundBets = Array(TOTAL_PLAYERS).fill(0);
+            this.currentBet = 0;
+            if (this.activeGame === "Hold 'Em") {
+                const revealCounts = [0, 3, 4, 5];
+                this.revealCommunityCards(revealCounts[this.bettingRoundIndex]);
+            }
+        }
+        this.raisesThisRound = 0;
+        this.hasActed = Array(TOTAL_PLAYERS).fill(false);
+        const startAfter = preflop ? this.bigBlindIndex : this.dealerIndex;
+        this.currentTurn = this.nextActiveSeat(startAfter);
+        this.beginTurn();
+    }
+
+    nextActiveSeat(afterIndex) {
+        for (let offset = 1; offset <= TOTAL_PLAYERS; offset++) {
+            const index = (afterIndex + offset) % TOTAL_PLAYERS;
+            if (!this.folded[index]) return index;
+        }
+        return -1;
+    }
+
+    beginTurn() {
+        if (!this.roundActive) return;
+        const activePlayers = this.folded.filter((folded) => !folded).length;
+        if (activePlayers === 1) {
+            this.awardFoldWin();
+            return;
+        }
+        if (this.isBettingRoundComplete()) {
+            this.finishBettingRound();
+            return;
+        }
+
+        const roundName = this.getBettingRoundNames()[this.bettingRoundIndex];
+        const toCall = this.amountToCall(this.currentTurn);
+        this.updateSeatHighlights();
+        this.blindText.setText(
+            `${roundName}\nTURN: ${this.seatNames[this.currentTurn]}\n` +
+            `CURRENT BET: $${this.currentBet}`
+        );
+        if (this.currentTurn === 0) {
+            this.resultText.setText(toCall > 0
+                ? `Your turn • $${toCall} to call`
+                : "Your turn • check or raise");
+            this.showPlayerActions();
+            return;
+        }
+
+        this.hideActionButtons();
+        this.resultText.setText(`${this.seatNames[this.currentTurn]} is acting...`);
+        const actingSeat = this.currentTurn;
+        this.time.delayedCall(550, () => {
+            if (this.roundActive && this.currentTurn === actingSeat) {
+                this.takeCpuAction(actingSeat);
+            }
+        });
+    }
+
+    amountToCall(index) {
+        return Math.max(0, this.currentBet - this.roundBets[index]);
+    }
+
+    showPlayerActions() {
+        const toCall = this.amountToCall(0);
+        const raiseCost = this.currentBet + this.bigBlind - this.roundBets[0];
+        const stake = Number(globalThis.STAKE ?? 0);
+        this.foldButton.setVisible(true).setText("FOLD");
+        this.callButton.setVisible(true).setText(toCall > 0 ? `CALL $${toCall}` : "CHECK");
+        this.raiseButton.setVisible(true).setText(`RAISE $${raiseCost}`);
+        this.setButtonEnabled(this.foldButton, true);
+        this.setButtonEnabled(this.callButton, stake >= toCall);
+        this.setButtonEnabled(this.raiseButton, stake >= raiseCost && this.raisesThisRound < 3);
+    }
+
+    hideActionButtons() {
+        [this.foldButton, this.callButton, this.raiseButton].forEach((button) => {
+            button.setVisible(false);
+        });
+    }
+
+    playerAction(action) {
+        if (!this.roundActive || this.currentTurn !== 0) return;
+        this.applyAction(0, action);
+    }
+
+    takeCpuAction(index) {
+        const toCall = this.amountToCall(index);
+        const roll = Phaser.Math.Between(1, 100);
+        if (toCall > 0 && roll <= 18) {
+            this.applyAction(index, "fold");
+        } else if (roll >= 78 && this.raisesThisRound < 3) {
+            this.applyAction(index, "raise");
+        } else {
+            this.applyAction(index, "call");
+        }
+    }
+
+    applyAction(index, action) {
+        if (!this.roundActive || this.folded[index]) return;
+        this.hideActionButtons();
+        const name = this.seatNames[index];
+
+        if (action === "fold") {
+            this.folded[index] = true;
+            this.hasActed[index] = true;
+            this.updateSeatHighlights();
+            this.resultText.setText(`${name} folds`);
+        } else if (action === "raise") {
+            const targetBet = this.currentBet + this.bigBlind;
+            const amount = targetBet - this.roundBets[index];
+            if (index === 0 && Number(globalThis.STAKE ?? 0) < amount) return;
+            this.addToPot(index, amount);
+            this.currentBet = targetBet;
+            this.raisesThisRound++;
+            this.hasActed = this.hasActed.map((acted, seat) => this.folded[seat]);
+            this.hasActed[index] = true;
+            this.resultText.setText(`${name} raises to $${targetBet}`);
+        } else {
+            const amount = this.amountToCall(index);
+            if (index === 0 && Number(globalThis.STAKE ?? 0) < amount) return;
+            this.addToPot(index, amount);
+            this.hasActed[index] = true;
+            this.resultText.setText(amount > 0 ? `${name} calls $${amount}` : `${name} checks`);
+        }
+
+        this.potText.setText(`POT: $${this.currentPot}`);
+        this.currentTurn = this.nextActiveSeat(index);
+        this.time.delayedCall(350, () => this.beginTurn());
+    }
+
+    addToPot(index, amount) {
+        this.roundBets[index] += amount;
+        this.handContributions[index] += amount;
+        this.currentPot += amount;
+        this.potChipValues.push(...this.chipValuesForAmount(amount));
+        if (index === 0) {
+            globalThis.STAKE = Number(globalThis.STAKE ?? 0) - amount;
+            this.navbar.setStake(globalThis.STAKE);
+        }
+        this.renderPotChips();
+    }
+
+    renderPotChips() {
+        this.potChipSprites.forEach((chip) => chip.destroy());
+        this.potChipSprites = [];
+        if (!Number.isSafeInteger(this.currentPot) || this.currentPot <= 0) return;
+
+        const chipFrames = [
+            [5000, 7], [1000, 6], [500, 5], [100, 4],
+            [50, 3], [20, 2], [10, 1], [5, 0]
+        ];
+        const stacks = [];
+        chipFrames.forEach(([denomination, frame]) => {
+            let count = this.potChipValues.filter((value) => value === denomination).length;
+            while (count > 0) {
+                const stackSize = Math.min(count, 7);
+                stacks.push({ frame, count: stackSize });
+                count -= stackSize;
+            }
+        });
+
+        const columns = Math.min(5, stacks.length);
+        stacks.forEach((stack, stackIndex) => {
+            const row = Math.floor(stackIndex / columns);
+            const column = stackIndex % columns;
+            const columnsInRow = Math.min(columns, stacks.length - row * columns);
+            const x = this.potZone.x + (column - (columnsInRow - 1) / 2) * 22;
+            const baseY = this.potZone.y + 32 - row * 17;
+            for (let chipIndex = 0; chipIndex < stack.count; chipIndex++) {
+                const chip = this.add.sprite(
+                    x,
+                    baseY - chipIndex * 5,
+                    "pokerChips",
+                    stack.frame
+                ).setOrigin(0.5, 1).setDepth(35 + row);
+                this.potChipSprites.push(chip);
+                this.gameLayer.add(chip);
+            }
+        });
+    }
+
+    chipValuesForAmount(amount) {
+        const denominations = [5000, 1000, 500, 100, 50, 20, 10, 5];
+        const values = [];
+        let remaining = amount;
+        denominations.forEach((denomination) => {
+            while (remaining >= denomination) {
+                values.push(denomination);
+                remaining -= denomination;
+            }
+        });
+        return values;
+    }
+
+    clearPotChips() {
+        this.potChipSprites.forEach((chip) => chip.destroy());
+        this.potChipSprites = [];
+    }
+
+    isBettingRoundComplete() {
+        return this.folded.every((folded, index) => (
+            folded || (this.hasActed[index] && this.roundBets[index] === this.currentBet)
+        ));
+    }
+
+    finishBettingRound() {
+        const roundNames = this.getBettingRoundNames();
+        if (this.bettingRoundIndex >= roundNames.length - 1) {
+            this.showdown();
+        } else {
+            this.resultText.setText(`${roundNames[this.bettingRoundIndex]} COMPLETE`);
+            this.time.delayedCall(500, () => this.startBettingRound(false));
+        }
+    }
+
+    awardFoldWin() {
+        const winnerIndex = this.folded.findIndex((folded) => !folded);
+        if (winnerIndex === 0) {
+            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.currentPot;
+        }
+        this.resultText.setText(`${this.seatNames[winnerIndex]} WINS $${this.currentPot} • ALL OTHERS FOLDED`);
+        this.completeHand();
+    }
+
+    revealCommunityCards(count) {
+        this.cardSprites
+            .filter((sprite) => sprite.getData("group") === "community")
+            .slice(0, count)
+            .forEach((sprite) => {
+                sprite.setFrame(this.getCardFrame(sprite.getData("card")));
+                sprite.setData("faceUp", true);
+            });
+    }
+
+    updateSeatHighlights() {
+        this.seatLabels.forEach((label, index) => {
+            if (!label) return;
+            label.setColor(this.folded[index]
+                ? "#888888"
+                : index === this.currentTurn ? "#ffff00" : "#ffffff");
+        });
+    }
+
+    addHandLabel(label, x, y, seatIndex) {
+        const text = this.add.text(x, y, label, {
+            fontFamily: "Arial",
+            fontSize: "13px",
+            fontStyle: "bold",
+            color: "#ffffff",
+            stroke: "#000000",
+            strokeThickness: 3
+        }).setDepth(21);
+        this.handLabels.push(text);
+        this.seatLabels[seatIndex] = text;
+        this.gameLayer.add(text);
+    }
+
+    renderCards(
+        cards,
+        startX,
+        y,
+        visibility,
+        initialDelay,
+        cardSpacing,
+        scale = 0.72,
+        group = "",
+        seatIndex = null
+    ) {
+        const spacing = cardSpacing ?? (cards.length >= 7 ? 55 : 70);
         cards.forEach((card, index) => {
             const targetX = startX + index * spacing;
             const faceUp = Array.isArray(visibility) ? visibility[index] : visibility;
@@ -505,8 +898,8 @@ export class PokerScene extends Phaser.Scene {
                 120,
                 "pokerCards",
                 faceUp ? this.getCardFrame(card) : 52
-            ).setScale(0.72).setAlpha(0).setDepth(20);
-            sprite.setData({ card, faceUp });
+            ).setScale(scale).setAlpha(0).setDepth(20);
+            sprite.setData({ card, faceUp, group, seatIndex });
             this.cardSprites.push(sprite);
             this.gameLayer.add(sprite);
             this.tweens.add({
@@ -524,7 +917,9 @@ export class PokerScene extends Phaser.Scene {
 
     showdown() {
         this.cardSprites.forEach((sprite) => {
-            if (!sprite.getData("faceUp")) {
+            const foldedOpponent = sprite.getData("group") === "opponent"
+                && this.folded[sprite.getData("seatIndex")];
+            if (!sprite.getData("faceUp") && !foldedOpponent) {
                 sprite.setFrame(this.getCardFrame(sprite.getData("card")));
             }
         });
@@ -532,34 +927,64 @@ export class PokerScene extends Phaser.Scene {
         const playerCards = this.activeGame === "Hold 'Em"
             ? [...this.playerHand, ...this.communityCards]
             : this.playerHand;
-        const opponentCards = this.activeGame === "Hold 'Em"
-            ? [...this.opponentHand, ...this.communityCards]
-            : this.opponentHand;
         const playerScore = this.bestPokerHand(playerCards);
-        const opponentScore = this.bestPokerHand(opponentCards);
-        const comparison = this.compareScores(playerScore.score, opponentScore.score);
+        const opponentScores = this.opponentHands.map((hand) => this.bestPokerHand(
+            this.activeGame === "Hold 'Em" ? [...hand, ...this.communityCards] : hand
+        ));
+        const scores = [playerScore, ...opponentScores];
+        const activeScores = scores
+            .map((score, index) => ({ score, index }))
+            .filter(({ index }) => !this.folded[index]);
+        const bestEntry = activeScores.reduce((best, candidate) => (
+            this.compareScores(candidate.score.score, best.score.score) > 0 ? candidate : best
+        ));
+        const bestScore = bestEntry.score;
+        const winners = activeScores
+            .filter(({ score }) => this.compareScores(score.score, bestScore.score) === 0);
+        const playerWon = winners.some(({ index }) => index === 0);
 
-        if (comparison > 0) {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.currentPot;
-            this.resultText.setText(`YOU WIN — ${playerScore.name}\nDealer: ${opponentScore.name}`);
-        } else if (comparison === 0) {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.currentWager;
-            this.resultText.setText(`PUSH — ${playerScore.name}`);
+        if (playerWon) {
+            const payout = Math.floor(this.currentPot / winners.length / 5) * 5;
+            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + payout;
+            this.resultText.setText(winners.length === 1
+                ? `YOU WIN — ${playerScore.name}`
+                : `SPLIT POT (${winners.length} WAYS) — ${playerScore.name}`);
         } else {
-            this.resultText.setText(`DEALER WINS — ${opponentScore.name}\nYou: ${playerScore.name}`);
+            const winnerNames = winners.map(({ index }) => this.seatNames[index]).join(" & ");
+            this.resultText.setText(
+                `${winnerNames} WIN${winners.length === 1 ? "S" : ""} — ${bestScore.name}\n` +
+                `You: ${playerScore.name}`
+            );
         }
 
+        this.completeHand();
+    }
+
+    completeHand() {
         this.roundActive = false;
+        this.hideActionButtons();
         this.navbar.setStake(globalThis.STAKE);
+        this.dealerIndex = (this.dealerIndex + 1) % TOTAL_PLAYERS;
+        globalThis.POKER_DEALER_INDEX = this.dealerIndex;
         this.buildChipStacks();
         this.updateGameButtons();
+        const { littleBlindIndex, bigBlindIndex } = this.getBlindPositions();
+        this.blindText.setText(
+            `NEXT DEALER: ${this.seatNames[this.dealerIndex]}\n` +
+            `NEXT SB: ${this.seatNames[littleBlindIndex]}\n` +
+            `NEXT BB: ${this.seatNames[bigBlindIndex]}`
+        );
     }
 
     updateGameButtons() {
-        const minimumBet = this.selectedGame === "Hold 'Em" ? this.bigBlind : 5;
+        const minimumAnte = this.selectedGame === "Hold 'Em" ? this.bigBlind : 5;
+        const { littleBlindIndex, bigBlindIndex } = this.getBlindPositions();
+        const playerBlind = littleBlindIndex === 0
+            ? this.littleBlind
+            : bigBlindIndex === 0 ? this.bigBlind : 0;
         const canDeal = !this.roundActive
-            && this.betPlaced >= minimumBet
-            && Number(globalThis.STAKE ?? 0) >= this.betPlaced;
+            && this.betPlaced >= minimumAnte
+            && Number(globalThis.STAKE ?? 0) >= this.betPlaced + playerBlind;
         this.setButtonEnabled(this.dealButton, canDeal);
         this.setButtonEnabled(this.settingsButton, !this.roundActive);
         this.setButtonEnabled(this.exitButton, !this.roundActive);
@@ -574,6 +999,9 @@ export class PokerScene extends Phaser.Scene {
     clearCards() {
         this.cardSprites.forEach((card) => card.destroy());
         this.cardSprites = [];
+        this.handLabels.forEach((label) => label.destroy());
+        this.handLabels = [];
+        this.seatLabels = Array(TOTAL_PLAYERS).fill(null);
     }
 
     makeDeck() {
