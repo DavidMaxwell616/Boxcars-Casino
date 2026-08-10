@@ -22,7 +22,7 @@ export class BlackjackScene extends Phaser.Scene {
     }
 
     create() {
-        this.balance = Number(globalThis.STAKE ?? 0);
+        this.balance = Number(STAKE ?? 0);
         this.betPlaced = 0;
         this.roundActive = false;
         this.playerTurn = false;
@@ -30,6 +30,12 @@ export class BlackjackScene extends Phaser.Scene {
 
         this.deck = [];
         this.playerHand = [];
+        this.playerHands = [];
+        this.handBets = [];
+        this.handStates = [];
+        this.activeHandIndex = 0;
+        this.insuranceBet = 0;
+        this.insurancePromptActive = false;
         this.dealerHand = [];
 
         this.cardSprites = [];
@@ -66,6 +72,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.exitBtnRect = new Phaser.Geom.Rectangle(21, 570, 48, 18);
         this.hitBtnRect = new Phaser.Geom.Rectangle(125, 570, 59, 18);
         this.standBtnRect = new Phaser.Geom.Rectangle(243, 570, 59, 18);
+        this.splitBtnRect = new Phaser.Geom.Rectangle(340, 570, 70, 18);
         this.dealBtnRect = new Phaser.Geom.Rectangle(537, 570, 59, 18);
 
         this.exitBtnText = this.add.text(this.exitBtnRect.centerX, this.exitBtnRect.centerY, "Exit", {
@@ -89,6 +96,13 @@ export class BlackjackScene extends Phaser.Scene {
             fontStyle: "bold"
         }).setOrigin(0.5).setDepth(10);
 
+        this.splitBtnText = this.add.text(this.splitBtnRect.centerX, this.splitBtnRect.centerY, "Split", {
+            fontFamily: "Arial",
+            fontSize: "18px",
+            color: "#7f7f7f",
+            fontStyle: "bold"
+        }).setOrigin(0.5).setDepth(10);
+
         this.dealBtnText = this.add.text(this.dealBtnRect.centerX, this.dealBtnRect.centerY, "Deal", {
             fontFamily: "Arial",
             fontSize: "18px",
@@ -105,7 +119,7 @@ export class BlackjackScene extends Phaser.Scene {
                 : pointer.y;
 
             if (Phaser.Geom.Rectangle.Contains(this.exitBtnRect, x, y)) {
-                this.scene.start("Hub");
+                if (!this.roundActive) this.scene.start("Hub");
                 return;
             }
 
@@ -121,6 +135,11 @@ export class BlackjackScene extends Phaser.Scene {
 
             if (Phaser.Geom.Rectangle.Contains(this.standBtnRect, x, y)) {
                 if (this.roundActive && this.playerTurn) this.onStand();
+                return;
+            }
+
+            if (Phaser.Geom.Rectangle.Contains(this.splitBtnRect, x, y)) {
+                if (this.canSplitCurrentHand()) this.onSplit();
                 return;
             }
         });
@@ -152,6 +171,19 @@ export class BlackjackScene extends Phaser.Scene {
             fontSize: "12px",
             color: "#000000"
         });
+        this.insuranceStatusText = this.add.text(160, 116, "", {
+            fontFamily: "Arial",
+            fontSize: "15px",
+            fontStyle: "bold",
+            color: "#ffff00"
+        }).setOrigin(0.5).setDepth(20);
+        this.insuranceYesButton = this.makeActionButton(355, 250, "INSURE", () => {
+            this.chooseInsurance(true);
+        });
+        this.insuranceNoButton = this.makeActionButton(465, 250, "NO", () => {
+            this.chooseInsurance(false);
+        });
+        this.setInsuranceButtonsVisible(false);
 
         this.dealerScoreText = this.add.text(574, 84, "", {
             fontFamily: "Arial",
@@ -218,8 +250,26 @@ export class BlackjackScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(15);
     }
 
+    makeActionButton(x, y, label, callback) {
+        const button = this.add.text(x, y, label, {
+            fontFamily: "Arial",
+            fontSize: "17px",
+            fontStyle: "bold",
+            color: "#000000",
+            backgroundColor: "#c0c0c0",
+            padding: { x: 12, y: 6 }
+        }).setOrigin(0.5).setDepth(110).setInteractive({ useHandCursor: true });
+        button.on("pointerdown", callback);
+        return button;
+    }
+
+    setInsuranceButtonsVisible(visible) {
+        this.insuranceYesButton?.setVisible(visible);
+        this.insuranceNoButton?.setVisible(visible);
+    }
+
     buildBankrollStacks() {
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         if (!Number.isSafeInteger(stake) || stake <= 0) {
             return;
         }
@@ -393,16 +443,28 @@ export class BlackjackScene extends Phaser.Scene {
         this.roundActive = true;
         this.playerTurn = false;
         this.hideDealerHole = true;
+        this.insuranceBet = 0;
+        this.insurancePromptActive = false;
+        this.setInsuranceButtonsVisible(false);
+        this.insuranceStatusText.setText("");
         this.wageredChips.forEach((chip) => chip.disableInteractive());
 
         this.balance -= this.betPlaced;
 
         this.deck = this.makeShuffledDeck();
         this.playerHand = [];
+        this.playerHands = [];
+        this.handBets = [];
+        this.handStates = [];
+        this.activeHandIndex = 0;
         this.dealerHand = [];
 
         this.dealCard(this.playerHand);
         this.dealCard(this.dealerHand);
+
+        this.playerHands = [this.playerHand];
+        this.handBets = [this.betPlaced];
+        this.handStates = ["active"];
         this.dealCard(this.playerHand);
         this.dealCard(this.dealerHand);
 
@@ -413,13 +475,73 @@ export class BlackjackScene extends Phaser.Scene {
         const dealerScore = this.evaluateHand(this.dealerHand);
 
         this.animateInitialDeal(() => {
+            if (this.dealerHand[0]?.rank === "A") {
+                this.offerInsurance();
+                return;
+            }
             if (playerScore.isBlackjack || dealerScore.isBlackjack) {
                 this.time.delayedCall(400, () => this.finishNaturals());
-            } else {
-                this.playerTurn = true;
-                this.updateTexts();
+                return;
             }
+            this.playerTurn = true;
+            this.updateTexts();
         });
+    }
+
+    getMaximumInsuranceBet() {
+        const halfBetInChips = Math.floor(this.betPlaced / 10) * 5;
+        const available = Math.max(0, Number(STAKE ?? 0) - this.betPlaced);
+        return Math.min(halfBetInChips, available);
+    }
+
+    offerInsurance() {
+        const maximum = this.getMaximumInsuranceBet();
+        if (maximum <= 0) {
+            this.insurancePromptActive = true;
+            this.chooseInsurance(false);
+            return;
+        }
+        this.insurancePromptActive = true;
+        this.playerTurn = false;
+        this.insuranceYesButton.setText(`INSURE $${maximum}`);
+        this.setInsuranceButtonsVisible(true);
+        this.messageText
+            .setPosition(410, 210)
+            .setFontSize("24px")
+            .setDepth(105)
+            .setText("Insurance?");
+        this.insuranceStatusText.setText(`UP TO $${maximum} • PAYS 2 TO 1`);
+        this.updateTexts();
+    }
+
+    chooseInsurance(accepted) {
+        if (!this.insurancePromptActive) return;
+        this.insurancePromptActive = false;
+        this.setInsuranceButtonsVisible(false);
+        this.messageText.setText("");
+        this.insuranceBet = accepted ? this.getMaximumInsuranceBet() : 0;
+
+        const dealerBlackjack = this.evaluateHand(this.dealerHand).isBlackjack;
+        if (this.insuranceBet > 0) {
+            STAKE = Number(STAKE ?? 0) + (dealerBlackjack
+                ? this.insuranceBet * 2
+                : -this.insuranceBet);
+            this.updateNavbarStake();
+            this.insuranceStatusText.setText(dealerBlackjack
+                ? `INSURANCE WINS $${this.insuranceBet * 2}`
+                : `INSURANCE LOSES $${this.insuranceBet}`);
+        } else {
+            this.insuranceStatusText.setText("");
+        }
+
+        const playerBlackjack = this.evaluateHand(this.playerHand).isBlackjack;
+        if (dealerBlackjack || playerBlackjack) {
+            this.time.delayedCall(250, () => this.finishNaturals());
+        } else {
+            this.playerTurn = true;
+            this.statusText.setText(this.insuranceBet > 0 ? "Insurance lost" : "");
+            this.updateTexts();
+        }
     }
 
     animateInitialDeal(onComplete) {
@@ -487,7 +609,96 @@ export class BlackjackScene extends Phaser.Scene {
         this.updateTexts();
     }
 
+    canSplitCurrentHand() {
+        if (!this.roundActive || !this.playerTurn || this.insurancePromptActive) return false;
+        if (this.playerHands.length >= 4) return false;
+        const hand = this.playerHands[this.activeHandIndex];
+        if (!hand || hand.length !== 2) return false;
+        if (this.cardValue(hand[0]) !== this.cardValue(hand[1])) return false;
+        const nextTotalWager = this.handBets.reduce((total, bet) => total + bet, 0)
+            + this.betPlaced;
+        return Number(STAKE ?? 0) >= nextTotalWager;
+    }
+
+    onSplit() {
+        if (!this.canSplitCurrentHand()) return;
+        this.playerTurn = false;
+        const index = this.activeHandIndex;
+        const hand = this.playerHands[index];
+        const splitAces = hand[0].rank === "A" && hand[1].rank === "A";
+        const firstHand = [hand[0]];
+        const secondHand = [hand[1]];
+        this.dealCard(firstHand);
+        this.dealCard(secondHand);
+
+        this.playerHands.splice(index, 1, firstHand, secondHand);
+        this.handBets.splice(index, 1, this.betPlaced, this.betPlaced);
+        this.handStates.splice(
+            index,
+            1,
+            splitAces ? "stood" : "active",
+            splitAces ? "stood" : "active"
+        );
+        this.playerHand = firstHand;
+        this.renderHands();
+        this.updateTexts();
+
+        if (splitAces) {
+            this.time.delayedCall(350, () => this.advanceToNextHand());
+        } else {
+            this.playerTurn = true;
+            this.updateTexts();
+        }
+    }
+
+    onSplitHit() {
+        this.playerTurn = false;
+        const hand = this.playerHands[this.activeHandIndex];
+        this.dealCard(hand);
+        this.playerHand = hand;
+        this.renderHands();
+        if (this.evaluateHand(hand).isBust) {
+            this.handStates[this.activeHandIndex] = "bust";
+            this.time.delayedCall(300, () => this.advanceToNextHand());
+        } else {
+            this.playerTurn = true;
+        }
+        this.updateTexts();
+    }
+
+    advanceToNextHand() {
+        let nextIndex = this.activeHandIndex + 1;
+        while (nextIndex < this.playerHands.length && this.handStates[nextIndex] !== "active") {
+            nextIndex++;
+        }
+        if (nextIndex < this.playerHands.length) {
+            this.activeHandIndex = nextIndex;
+            this.playerHand = this.playerHands[nextIndex];
+            this.playerTurn = true;
+            this.renderHands();
+            this.updateTexts();
+            return;
+        }
+        this.finishPlayerHands();
+    }
+
+    finishPlayerHands() {
+        this.playerTurn = false;
+        this.hideDealerHole = false;
+        this.renderHands();
+        this.updateTexts();
+        if (this.handStates.every((state) => state === "bust")) {
+            this.resolveWinner();
+        } else {
+            this.dealerPlayStep();
+        }
+    }
+
     onHit() {
+        if (this.playerHands.length > 1) {
+            this.onSplitHit();
+            return;
+        }
         this.playerTurn = false;
         this.updateTexts();
 
@@ -521,6 +732,12 @@ export class BlackjackScene extends Phaser.Scene {
     }
 
     onStand() {
+        if (this.playerHands.length > 1) {
+            this.playerTurn = false;
+            this.handStates[this.activeHandIndex] = "stood";
+            this.advanceToNextHand();
+            return;
+        }
         this.playerTurn = false;
         this.hideDealerHole = false;
         this.renderHands();
@@ -545,6 +762,10 @@ export class BlackjackScene extends Phaser.Scene {
     }
 
     resolveWinner() {
+        if (this.playerHands.length > 1) {
+            this.resolveSplitHands();
+            return;
+        }
         const playerScore = this.evaluateHand(this.playerHand);
         const dealerScore = this.evaluateHand(this.dealerHand);
 
@@ -568,8 +789,8 @@ export class BlackjackScene extends Phaser.Scene {
         this.playerTurn = false;
 
         if (outcome === "win") {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + winnings;
-            this.balance = Number(globalThis.STAKE);
+            STAKE = Number(STAKE ?? 0) + winnings;
+            this.balance = Number(STAKE);
             this.updateNavbarStake();
         }
 
@@ -630,6 +851,10 @@ export class BlackjackScene extends Phaser.Scene {
         this.playerCardSprites = [];
         this.dealerHand = [];
         this.playerHand = [];
+        this.playerHands = [];
+        this.handBets = [];
+        this.handStates = [];
+        this.activeHandIndex = 0;
         this.dealerScoreText.setText("");
         this.playerScoreText.setText("");
     }
@@ -639,7 +864,7 @@ export class BlackjackScene extends Phaser.Scene {
         const transfers = [];
 
         if (outcome === "loss") {
-            globalThis.STAKE = Math.max(0, Number(globalThis.STAKE ?? 0) - wager);
+            STAKE = Math.max(0, Number(STAKE ?? 0) - wager);
 
             this.wageredChips.forEach((chip, index) => {
                 transfers.push({
@@ -765,7 +990,10 @@ export class BlackjackScene extends Phaser.Scene {
     }
 
     completeRoundSettlement(outcome) {
-        if (outcome === "win") {
+        const hadInsurance = this.insuranceBet > 0;
+        this.insuranceStatusText.setText("");
+        this.insuranceBet = 0;
+        if (outcome === "win" && !hadInsurance) {
             this.bankrollChipStacks.forEach((stack) => {
                 const bankrollChips = stack.filter(
                     (chip) => chip.active && !this.wageredChips.includes(chip)
@@ -779,7 +1007,7 @@ export class BlackjackScene extends Phaser.Scene {
                 this.makeBankrollChipDraggable(topChip);
             });
 
-            this.balance = Number(globalThis.STAKE ?? 0);
+            this.balance = Number(STAKE ?? 0);
             this.roundActive = false;
             this.playerTurn = false;
             this.wageredChips.forEach((chip) => {
@@ -799,7 +1027,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.bankrollChipStacks = [];
         this.wageredChips = [];
         this.betPlaced = 0;
-        this.balance = Number(globalThis.STAKE ?? 0);
+        this.balance = Number(STAKE ?? 0);
         this.roundActive = false;
         this.playerTurn = false;
 
@@ -808,8 +1036,76 @@ export class BlackjackScene extends Phaser.Scene {
         this.updateTexts();
     }
 
+    resolveSplitHands() {
+        const dealerScore = this.evaluateHand(this.dealerHand);
+        let netWinnings = 0;
+        const results = this.playerHands.map((hand, index) => {
+            const score = this.evaluateHand(hand);
+            const wager = this.handBets[index];
+            if (score.isBust) {
+                netWinnings -= wager;
+                return `H${index + 1} BUST`;
+            }
+            if (dealerScore.isBust || score.total > dealerScore.total) {
+                netWinnings += wager;
+                return `H${index + 1} WINS`;
+            }
+            if (score.total < dealerScore.total) {
+                netWinnings -= wager;
+                return `H${index + 1} LOSES`;
+            }
+            return `H${index + 1} PUSHES`;
+        });
+
+        STAKE = Math.max(
+            0,
+            Number(STAKE ?? 0) + netWinnings
+        );
+        this.balance = Number(STAKE);
+        this.updateNavbarStake();
+        this.endSplitRound(results.join(" • "));
+    }
+
+    endSplitRound(message) {
+        this.playerTurn = false;
+        this.messageText
+            .setPosition(this.W / 2, 330)
+            .setFontSize("30px")
+            .setFontStyle("bold")
+            .setColor("#ff0000")
+            .setStroke("#ffffff", 5)
+            .setAlign("center")
+            .setDepth(100)
+            .setText(message);
+        this.time.delayedCall(5000, () => {
+            this.messageText.setText("");
+            this.clearCardsTween(() => this.completeSplitSettlement());
+        });
+    }
+
+    completeSplitSettlement() {
+        this.insuranceStatusText.setText("");
+        this.insuranceBet = 0;
+        this.chipSprites.forEach((chip) => {
+            if (chip.active) chip.destroy();
+        });
+        this.chipSprites = [];
+        this.bankrollChipStacks = [];
+        this.wageredChips = [];
+        this.betPlaced = 0;
+        this.roundActive = false;
+        this.playerTurn = false;
+        this.playerHands = [];
+        this.handBets = [];
+        this.handStates = [];
+        this.activeHandIndex = 0;
+        this.buildBankrollStacks();
+        this.updateNavbarStake();
+        this.updateTexts();
+    }
+
     updateNavbarStake() {
-        this.navbar.setStake(this.balance);
+        this.navbar.setStake(Number(STAKE ?? this.balance));
     }
 
     renderHands() {
@@ -834,19 +1130,30 @@ export class BlackjackScene extends Phaser.Scene {
             this.dealerCardSprites.push(spr);
         }
 
-        for (let i = 0; i < this.playerHand.length; i++) {
-            const frame = this.getCardFrame(this.playerHand[i]);
-            const spr = this.add.sprite(playerX + i * 20, playerY + i * 2, "blackjackCardsV2", frame).setOrigin(0, 0);
-            this.cardLayer.add(spr);
-            this.cardSprites.push(spr);
-            this.playerCardSprites.push(spr);
-        }
+        const hands = this.playerHands.length > 0 ? this.playerHands : [this.playerHand];
+        const handSpacing = hands.length > 1 ? Math.min(115, 290 / hands.length) : 0;
+        hands.forEach((hand, handIndex) => {
+            hand.forEach((card, cardIndex) => {
+                const frame = this.getCardFrame(card);
+                const spr = this.add.sprite(
+                    playerX + handIndex * handSpacing + cardIndex * 18,
+                    playerY + cardIndex * 2,
+                    "blackjackCardsV2",
+                    frame
+                ).setOrigin(0, 0);
+                this.cardLayer.add(spr);
+                this.cardSprites.push(spr);
+                this.playerCardSprites.push(spr);
+            });
+        });
     }
 
     updateTexts() {
-        const wagerText = "$" + this.betPlaced.toLocaleString("en-US");
-        this.dealerWagerText.setText(wagerText);
-        this.playerWagerText.setText(wagerText);
+        const totalPlayerWager = this.handBets.length > 0
+            ? this.handBets.reduce((total, bet) => total + bet, 0)
+            : this.betPlaced;
+        this.dealerWagerText.setText("$" + this.betPlaced.toLocaleString("en-US"));
+        this.playerWagerText.setText("$" + totalPlayerWager.toLocaleString("en-US"));
 
         this.betInfoText.setText(this.roundActive ? "" : ("Bet: $" + this.betPlaced));
 
@@ -856,10 +1163,16 @@ export class BlackjackScene extends Phaser.Scene {
                 : "Dealer: " + this.getBestValue(this.dealerHand)
         );
 
-        this.playerScoreText.setText("Player: " + this.getBestValue(this.playerHand));
+        this.playerScoreText.setText(this.playerHands.length > 1
+            ? this.playerHands.map((hand, index) => (
+                `${index === this.activeHandIndex && this.playerTurn ? "▶" : ""}` +
+                `H${index + 1}:${this.getBestValue(hand)}`
+            )).join("  ")
+            : "Player: " + this.getBestValue(this.playerHand));
 
         this.hitBtnText.setColor(this.roundActive && this.playerTurn ? "#000000" : "#7f7f7f");
         this.standBtnText.setColor(this.roundActive && this.playerTurn ? "#000000" : "#7f7f7f");
+        this.splitBtnText.setColor(this.canSplitCurrentHand() ? "#000000" : "#7f7f7f");
         this.dealBtnText.setColor(
             !this.roundActive && this.betPlaced > 0 ? "#000000" : "#7f7f7f"
         );
@@ -1038,4 +1351,3 @@ export class BlackjackScene extends Phaser.Scene {
         g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
     }
 }
-

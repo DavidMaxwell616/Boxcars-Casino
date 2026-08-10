@@ -108,13 +108,13 @@ export class SlotsScene extends Phaser.Scene {
     }
 
     spin(bet) {
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         if (this.isSpinning || stake < bet) return;
 
         this.isSpinning = true;
         this.currentBet = bet;
-        globalThis.STAKE = stake - bet;
-        this.navbar.setStake(globalThis.STAKE);
+        STAKE = stake - bet;
+        this.navbar.setStake(STAKE);
         this.resultText.setColor("#ffffff").setText(`SPINNING — $${bet} BET`);
         this.updateButtonStates();
 
@@ -178,7 +178,7 @@ export class SlotsScene extends Phaser.Scene {
         const payout = this.currentBet * multiplier;
 
         if (payout > 0) {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + payout;
+            STAKE = Number(STAKE ?? 0) + payout;
             this.resultText
                 .setColor("#ffff00")
                 .setText(`WIN $${payout.toLocaleString("en-US")}\n${payline.join(" • ").toUpperCase()}`);
@@ -189,7 +189,7 @@ export class SlotsScene extends Phaser.Scene {
                 .setText(`NO WIN\n${payline.join(" • ").toUpperCase()}`);
         }
 
-        this.navbar.setStake(globalThis.STAKE);
+        this.navbar.setStake(STAKE);
         this.isSpinning = false;
         this.currentBet = 0;
         this.updateButtonStates();
@@ -210,7 +210,7 @@ export class SlotsScene extends Phaser.Scene {
     }
 
     updateButtonStates() {
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         this.betButtons.forEach((button) => {
             const enabled = !this.isSpinning && stake >= button.getData("bet");
             button.setColor(enabled ? "#000000" : "#7f7f7f");

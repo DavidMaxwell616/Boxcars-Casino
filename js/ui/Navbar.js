@@ -83,9 +83,9 @@ export class Navbar {
     }
 
     refreshAccount() {
-        this.setGambler(globalThis.GAMBLER_NAME);
-        this.setStake(globalThis.STAKE ?? 0);
-        this.setKenoCountdown(globalThis.KENO_COUNTDOWN_TEXT ?? "");
+        this.setGambler(GAMBLER_NAME);
+        this.setStake(STAKE ?? 0);
+        this.setKenoCountdown(KENO_COUNTDOWN_TEXT ?? "");
     }
 
     formatDollars(value) {

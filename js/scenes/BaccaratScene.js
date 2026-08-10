@@ -25,7 +25,7 @@ export class BaccaratScene extends Phaser.Scene {
         this.betSide = "player";
         this.roundActive = false;
         this.cardSprites = [];
-        globalThis.BACCARAT_COMMISSION_OWED ??= 0;
+        BACCARAT_COMMISSION_OWED ??= 0;
         this.shoe = this.makeShoe();
 
         this.add.image(0, 62, "baccaratBackground")
@@ -98,7 +98,7 @@ export class BaccaratScene extends Phaser.Scene {
 
     createWagerChip() {
         this.wagerChip?.destroy();
-        if (Number(globalThis.STAKE ?? 0) < this.minimumBet) {
+        if (Number(STAKE ?? 0) < this.minimumBet) {
             this.wagerChip = null;
             return;
         }
@@ -143,7 +143,7 @@ export class BaccaratScene extends Phaser.Scene {
     dealRound() {
         if (this.roundActive || !this.wagerChip) return;
         this.ensureShoe();
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         if (stake < this.betAmount) {
             this.updateDisplay();
             return;
@@ -157,8 +157,8 @@ export class BaccaratScene extends Phaser.Scene {
         this.playerScoreText.setText("");
         this.wagerChip.disableInteractive();
         this.setButtonEnabled(this.dealButton, false);
-        globalThis.STAKE = stake - this.betAmount;
-        this.navbar.setStake(globalThis.STAKE);
+        STAKE = stake - this.betAmount;
+        this.navbar.setStake(STAKE);
 
         if (this.cache.audio.exists("baccaratDeal")) this.sound.play("baccaratDeal");
 
@@ -231,14 +231,14 @@ export class BaccaratScene extends Phaser.Scene {
         else winner = "tie";
 
         if (winner === "tie") {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.betAmount;
+            STAKE = Number(STAKE ?? 0) + this.betAmount;
             this.winnerText.setText("TIE");
             this.statusText.setText("Tie — wager returned");
         } else if (winner === this.betSide) {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.betAmount * 2;
+            STAKE = Number(STAKE ?? 0) + this.betAmount * 2;
             if (winner === "bank") {
-                globalThis.BACCARAT_COMMISSION_OWED = Number(
-                    globalThis.BACCARAT_COMMISSION_OWED ?? 0
+                BACCARAT_COMMISSION_OWED = Number(
+                    BACCARAT_COMMISSION_OWED ?? 0
                 ) + this.betAmount * 0.05;
             }
             this.winnerText.setText(`${winner.toUpperCase()} WINS`);
@@ -249,7 +249,7 @@ export class BaccaratScene extends Phaser.Scene {
         }
 
         this.roundActive = false;
-        this.navbar.setStake(globalThis.STAKE);
+        this.navbar.setStake(STAKE);
         this.createWagerChip();
         this.updateDisplay();
     }
@@ -293,11 +293,11 @@ export class BaccaratScene extends Phaser.Scene {
     }
 
     collectCommission() {
-        const commission = Number(globalThis.BACCARAT_COMMISSION_OWED ?? 0);
+        const commission = Number(BACCARAT_COMMISSION_OWED ?? 0);
         if (commission <= 0) return;
-        globalThis.STAKE = Math.max(0, Number(globalThis.STAKE ?? 0) - commission);
-        globalThis.BACCARAT_COMMISSION_OWED = 0;
-        this.navbar?.setStake(globalThis.STAKE);
+        STAKE = Math.max(0, Number(STAKE ?? 0) - commission);
+        BACCARAT_COMMISSION_OWED = 0;
+        this.navbar?.setStake(STAKE);
     }
 
     getCardFrame(card) {
@@ -315,7 +315,7 @@ export class BaccaratScene extends Phaser.Scene {
     }
 
     updateDisplay() {
-        const commission = Number(globalThis.BACCARAT_COMMISSION_OWED ?? 0);
+        const commission = Number(BACCARAT_COMMISSION_OWED ?? 0);
         this.commissionText.setText(
             `Commission Owed: $${commission.toLocaleString("en-US", {
                 minimumFractionDigits: 2,
@@ -327,7 +327,7 @@ export class BaccaratScene extends Phaser.Scene {
         }
         this.setButtonEnabled(
             this.dealButton,
-            !this.roundActive && Number(globalThis.STAKE ?? 0) >= this.betAmount
+            !this.roundActive && Number(STAKE ?? 0) >= this.betAmount
         );
     }
 

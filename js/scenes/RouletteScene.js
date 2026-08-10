@@ -136,7 +136,7 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     buildBankrollStacks() {
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         if (!Number.isSafeInteger(stake) || stake <= 0) return;
 
         const chipFrames = new Map([
@@ -654,8 +654,8 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     settleBets(result, net) {
-        globalThis.STAKE = Math.max(0, Number(globalThis.STAKE ?? 0) + net);
-        this.navbar.setStake(globalThis.STAKE);
+        STAKE = Math.max(0, Number(STAKE ?? 0) + net);
+        this.navbar.setStake(STAKE);
 
         if (this.bets.length === 0) {
             this.resetBettingRound();

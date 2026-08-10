@@ -82,7 +82,7 @@ export class KenoScene extends Phaser.Scene {
     updateStakeDisplay() {
         if (!this.parentSceneKey) return;
         const parentScene = this.scene.get(this.parentSceneKey);
-        parentScene?.navbar?.setStake(globalThis.STAKE);
+        parentScene?.navbar?.setStake(STAKE);
     }
 
     closeModal() {
@@ -278,7 +278,7 @@ export class KenoScene extends Phaser.Scene {
 
     drawGames() {
         const ticketCost = this.betPerGame * this.numberOfGames;
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         if (this.drawing || this.selectedNumbers.size === 0) return;
         if (stake < ticketCost) {
             this.statusText.setText("NOT ENOUGH STAKE");
@@ -288,7 +288,7 @@ export class KenoScene extends Phaser.Scene {
         this.drawing = true;
         this.clearDrawHighlights();
         this.setControlsEnabled(false);
-        globalThis.STAKE = stake - ticketCost;
+        STAKE = stake - ticketCost;
         this.updateStakeDisplay();
 
         this.pendingDraws = Array(this.numberOfGames).fill(null);
@@ -326,7 +326,7 @@ export class KenoScene extends Phaser.Scene {
     }
 
     updateNavbarCountdown(text) {
-        globalThis.KENO_COUNTDOWN_TEXT = text;
+        KENO_COUNTDOWN_TEXT = text;
         if (!this.parentSceneKey) return;
         const parentScene = this.scene.get(this.parentSceneKey);
         parentScene?.navbar?.setKenoCountdown(text);
@@ -376,7 +376,7 @@ export class KenoScene extends Phaser.Scene {
             this.betPerGame
         );
         this.totalPayout += payout;
-        globalThis.STAKE = Number(globalThis.STAKE ?? 0) + payout;
+        STAKE = Number(STAKE ?? 0) + payout;
         this.updateStakeDisplay();
         this.statusText.setText(
             `DRAW ${this.currentGameIndex + 1}/${this.pendingDraws.length} • ` +
@@ -434,7 +434,7 @@ export class KenoScene extends Phaser.Scene {
         this.totalText.setText(`$${ticketCost}`);
         const canDraw = !this.drawing
             && this.selectedNumbers.size > 0
-            && Number(globalThis.STAKE ?? 0) >= ticketCost;
+            && Number(STAKE ?? 0) >= ticketCost;
         this.setButtonEnabled(this.drawButton, canDraw);
     }
 

@@ -26,7 +26,7 @@ export class CrapsScene extends Phaser.Scene {
     create() {
         this.W = 800;
         this.H = 538;
-        this.balance = Number(globalThis.STAKE ?? 0);
+        this.balance = Number(STAKE ?? 0);
         this.betPlaced = 0;
         this.selectedBetType = "pass";
         this.point = null;
@@ -36,9 +36,9 @@ export class CrapsScene extends Phaser.Scene {
         this.chipSprites = [];
         this.bankrollChipStacks = [];
         this.wageredChips = [];
-        this.playerNames = ["YOU", "CPU 1", "CPU 2", "CPU 3"];
-        this.shooterIndex = Number.isInteger(globalThis.CRAPS_SHOOTER_INDEX)
-            ? globalThis.CRAPS_SHOOTER_INDEX % TOTAL_PLAYERS
+        this.playerNames = ["YOU", "PLAYER 1", "PLAYER 2", "PLAYER 3"];
+        this.shooterIndex = Number.isInteger(CRAPS_SHOOTER_INDEX)
+            ? CRAPS_SHOOTER_INDEX % TOTAL_PLAYERS
             : 0;
         this.cpuPlayers = this.playerNames.slice(1).map((name) => ({
             name,
@@ -180,7 +180,7 @@ export class CrapsScene extends Phaser.Scene {
             [5, 0], [10, 1], [20, 2], [50, 3],
             [100, 4], [500, 5], [1000, 6], [5000, 7]
         ]);
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         if (!Number.isSafeInteger(stake) || stake <= 0) return;
 
         let distribution;
@@ -600,14 +600,14 @@ export class CrapsScene extends Phaser.Scene {
         this.rolling = false;
         const outcome = outcomes[this.selectedBetType];
         if (outcome === "win") {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.betPlaced;
-            this.balance = Number(globalThis.STAKE);
+            STAKE = Number(STAKE ?? 0) + this.betPlaced;
+            this.balance = Number(STAKE);
             this.navbar.setStake(this.balance);
         }
         this.settleCpuBets(outcomes);
         if (rotateShooter) {
             this.shooterIndex = (this.shooterIndex + 1) % TOTAL_PLAYERS;
-            globalThis.CRAPS_SHOOTER_INDEX = this.shooterIndex;
+            CRAPS_SHOOTER_INDEX = this.shooterIndex;
         }
 
         this.messageText.setText(message);
@@ -630,9 +630,9 @@ export class CrapsScene extends Phaser.Scene {
     settleWager(outcome) {
         const transfers = [];
         if (outcome === "loss") {
-            globalThis.STAKE = Math.max(
+            STAKE = Math.max(
                 0,
-                Number(globalThis.STAKE ?? 0) - this.betPlaced
+                Number(STAKE ?? 0) - this.betPlaced
             );
             this.wageredChips.forEach((chip, index) => {
                 transfers.push({ chip, x: 400 + index * 4, y: 105, alpha: 0 });
@@ -696,7 +696,7 @@ export class CrapsScene extends Phaser.Scene {
         this.point = null;
         this.roundActive = false;
         this.roundSettling = false;
-        this.balance = Number(globalThis.STAKE ?? 0);
+        this.balance = Number(STAKE ?? 0);
         this.dieOne.setVisible(false);
         this.dieTwo.setVisible(false);
         this.buildBankrollStacks();

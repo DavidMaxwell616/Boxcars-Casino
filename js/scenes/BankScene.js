@@ -32,16 +32,16 @@ export class BankScene extends Phaser.Scene {
         this.stakeTooHighMessage = null;
         this.stakeTooHighTimer = null;
 
-        globalThis.GAMBLER_NAME ??= "";
-        globalThis.STAKE ??= 0;
-        globalThis.BANK_BALANCE ??= 0;
+        GAMBLER_NAME ??= "";
+        STAKE ??= 0;
+        BANK_BALANCE ??= 0;
         this.navbar = new Navbar(this);
         const navBarHeight = this.navbar.height;
         this.add.image(0, navBarHeight, "bankBackground").setOrigin(0, 0);
         this.gamblerNameText = this.add.text(
             290,
             navBarHeight + 104,
-            globalThis.GAMBLER_NAME,
+            GAMBLER_NAME,
             {
                 fontFamily: "Arial, sans-serif",
                 fontSize: "18px",
@@ -51,7 +51,7 @@ export class BankScene extends Phaser.Scene {
         this.bankBalanceText = this.add.text(
             590,
             navBarHeight + 104,
-            this.formatDollars(globalThis.BANK_BALANCE),
+            this.formatDollars(BANK_BALANCE),
             {
                 fontFamily: "Arial, sans-serif",
                 fontSize: "18px",
@@ -62,7 +62,7 @@ export class BankScene extends Phaser.Scene {
         this.sideStakeText = this.add.text(
             20,
             navBarHeight + 246,
-            `Stake: ${this.formatDollars(globalThis.STAKE)}`,
+            `Stake: ${this.formatDollars(STAKE)}`,
             {
                 fontFamily: "Arial, sans-serif",
                 fontSize: "22px",
@@ -112,8 +112,8 @@ export class BankScene extends Phaser.Scene {
 
     showNewGambler() {
         if (this.newGamblerWindow) {
-            new_bank_balance = globalThis.BANK_BALANCE;
-            new_gambler_name = globalThis.GAMBLER_NAME;
+            new_bank_balance = BANK_BALANCE;
+            new_gambler_name = GAMBLER_NAME;
             this.bankDepositInput.node.value = String(new_bank_balance);
             this.newGamblerNameInput.node.value = new_gambler_name;
             this.newGamblerWindow.setVisible(true);
@@ -163,14 +163,14 @@ export class BankScene extends Phaser.Scene {
         this.newGamblerNameInput.node.type = "text";
         this.newGamblerNameInput.node.maxLength = 30;
         this.newGamblerNameInput.node.setAttribute("aria-label", "New Gambler's Name");
-        new_gambler_name = globalThis.GAMBLER_NAME;
+        new_gambler_name = GAMBLER_NAME;
         this.newGamblerNameInput.node.value = new_gambler_name;
         this.newGamblerNameInput.node.addEventListener("input", (event) => {
             new_gambler_name = event.target.value;
         });
         this.newGamblerNameInput.node.focus();
 
-        new_bank_balance = globalThis.BANK_BALANCE;
+        new_bank_balance = BANK_BALANCE;
 
         this.bankDepositInput = this.add.dom(
             windowLeft + 20,
@@ -213,12 +213,12 @@ export class BankScene extends Phaser.Scene {
         this.newGamblerOkButton.on("pointerdown", () => {
             if (!Number.isFinite(new_bank_balance) || new_bank_balance < 0) return;
 
-            globalThis.BANK_BALANCE = new_bank_balance;
-            globalThis.STAKE = 0;
-            globalThis.GAMBLER_NAME = new_gambler_name;
-            this.gamblerNameText.setText(globalThis.GAMBLER_NAME);
-            this.bankBalanceText.setText(this.formatDollars(globalThis.BANK_BALANCE));
-            this.sideStakeText.setText(`Stake: ${this.formatDollars(globalThis.STAKE)}`);
+            BANK_BALANCE = new_bank_balance;
+            STAKE = 0;
+            GAMBLER_NAME = new_gambler_name;
+            this.gamblerNameText.setText(GAMBLER_NAME);
+            this.bankBalanceText.setText(this.formatDollars(BANK_BALANCE));
+            this.sideStakeText.setText(`Stake: ${this.formatDollars(STAKE)}`);
             this.navbar.refreshAccount();
             this.updateChangeStakeButtonState();
             this.hideNewGambler();
@@ -234,8 +234,8 @@ export class BankScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         this.newGamblerCancelButton.on("pointerdown", () => {
-            new_bank_balance = globalThis.BANK_BALANCE;
-            new_gambler_name = globalThis.GAMBLER_NAME;
+            new_bank_balance = BANK_BALANCE;
+            new_gambler_name = GAMBLER_NAME;
             this.hideNewGambler();
         });
 
@@ -249,8 +249,8 @@ export class BankScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         this.newGamblerCloseButton.on("pointerdown", () => {
-            new_bank_balance = globalThis.BANK_BALANCE;
-            new_gambler_name = globalThis.GAMBLER_NAME;
+            new_bank_balance = BANK_BALANCE;
+            new_gambler_name = GAMBLER_NAME;
             this.hideNewGambler();
         });
     }
@@ -265,7 +265,7 @@ export class BankScene extends Phaser.Scene {
     }
 
     updateChangeStakeButtonState() {
-        const enabled = Number(globalThis.BANK_BALANCE) > 0;
+        const enabled = Number(BANK_BALANCE) > 0;
 
         if (enabled) {
             this.changeStakeButton.setInteractive({ useHandCursor: true });
@@ -279,11 +279,11 @@ export class BankScene extends Phaser.Scene {
     }
 
     showChangeStake() {
-        if (Number(globalThis.BANK_BALANCE) <= 0) return;
+        if (Number(BANK_BALANCE) <= 0) return;
 
         if (this.changeStakeWindow && this.changeStakeInput?.node) {
-            this.changeStakeInput.node.value = String(globalThis.STAKE);
-            this.changeStakeInput.node.max = String(globalThis.BANK_BALANCE);
+            this.changeStakeInput.node.value = String(STAKE);
+            this.changeStakeInput.node.max = String(BANK_BALANCE);
             this.changeStakeWindow.setVisible(true);
             this.changeStakeInput.setVisible(true);
             this.changeStakeOkButton.setVisible(true);
@@ -324,9 +324,9 @@ export class BankScene extends Phaser.Scene {
 
         this.changeStakeInput.node.type = "number";
         this.changeStakeInput.node.min = "0";
-        this.changeStakeInput.node.max = String(globalThis.BANK_BALANCE);
+        this.changeStakeInput.node.max = String(BANK_BALANCE);
         this.changeStakeInput.node.step = "0.01";
-        this.changeStakeInput.node.value = String(globalThis.STAKE);
+        this.changeStakeInput.node.value = String(STAKE);
         this.changeStakeInput.node.setAttribute("aria-label", "New Stake");
 
         this.changeStakeOkButton = this.add.zone(
@@ -342,13 +342,13 @@ export class BankScene extends Phaser.Scene {
             const stake = this.changeStakeInput.node.valueAsNumber;
             if (!Number.isFinite(stake) || stake < 0) return;
 
-            if (stake > globalThis.BANK_BALANCE) {
+            if (stake > BANK_BALANCE) {
                 this.showStakeTooHighMessage();
                 return;
             }
 
-            globalThis.STAKE = stake;
-            globalThis.BANK_BALANCE -= stake;
+            STAKE = stake;
+            BANK_BALANCE -= stake;
             this.scene.restart();
         });
 

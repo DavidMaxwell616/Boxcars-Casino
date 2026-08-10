@@ -41,7 +41,7 @@ export class PokerScene extends Phaser.Scene {
     }
 
     create() {
-        const saved = globalThis.POKER_SETTINGS ?? {};
+        const saved = POKER_SETTINGS ?? {};
         this.selectedGame = POKER_GAMES.includes(saved.game)
             ? saved.game
             : "Five-Card Draw";
@@ -49,10 +49,10 @@ export class PokerScene extends Phaser.Scene {
         this.roundActive = false;
         this.littleBlind = 5;
         this.bigBlind = 10;
-        this.dealerIndex = Number.isInteger(globalThis.POKER_DEALER_INDEX)
-            ? globalThis.POKER_DEALER_INDEX % TOTAL_PLAYERS
+        this.dealerIndex = Number.isInteger(POKER_DEALER_INDEX)
+            ? POKER_DEALER_INDEX % TOTAL_PLAYERS
             : 0;
-        this.seatNames = ["YOU", "CPU 1", "CPU 2", "CPU 3"];
+        this.seatNames = ["YOU", "PLAYER 1", "PLAYER 2", "PLAYER 3"];
         this.betPlaced = 0;
         this.cardSprites = [];
         this.handLabels = [];
@@ -190,7 +190,7 @@ export class PokerScene extends Phaser.Scene {
     }
 
     acceptSettings() {
-        globalThis.POKER_SETTINGS = {
+        POKER_SETTINGS = {
             game: this.selectedGame,
             wildCards: this.wildCards
         };
@@ -322,7 +322,7 @@ export class PokerScene extends Phaser.Scene {
         this.bankrollChipStacks = [];
         this.wageredChips = [];
         this.betPlaced = 0;
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         if (!Number.isSafeInteger(stake) || stake <= 0) {
             this.updateWagerDisplay();
             return;
@@ -480,7 +480,7 @@ export class PokerScene extends Phaser.Scene {
         const activeGame = this.selectedGame === "Dealer's Choice"
             ? Phaser.Utils.Array.GetRandom(FIXED_GAMES)
             : this.selectedGame;
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         const minimumAnte = activeGame === "Hold 'Em" ? this.bigBlind : 5;
         if (this.betPlaced < minimumAnte) {
             this.updateRuleText(activeGame);
@@ -495,7 +495,7 @@ export class PokerScene extends Phaser.Scene {
         if (!this.postAntes(this.betPlaced, stake)) return;
         this.roundActive = true;
         this.clearCards();
-        this.navbar.setStake(globalThis.STAKE);
+        this.navbar.setStake(STAKE);
         this.buildChipStacks();
         this.renderPotChips();
         this.updateGameButtons();
@@ -533,7 +533,7 @@ export class PokerScene extends Phaser.Scene {
         const opponentSpacing = cardsPerPlayer >= 7 ? 22 : 30;
         this.opponentHands.forEach((hand, index) => {
             this.addHandLabel(
-                `CPU ${index + 1} ${this.getSeatRole(index + 1)} • ANTE $${this.playerAntes[index + 1]}`,
+                `PLAYER ${index + 1} ${this.getSeatRole(index + 1)} • ANTE $${this.playerAntes[index + 1]}`,
                 opponentStarts[index],
                 108,
                 index + 1
@@ -601,7 +601,7 @@ export class PokerScene extends Phaser.Scene {
         );
         this.currentBet = this.bigBlind;
         this.currentPot = this.handContributions.reduce((total, amount) => total + amount, 0);
-        globalThis.STAKE = stake - requiredStake;
+        STAKE = stake - requiredStake;
         return true;
     }
 
@@ -686,7 +686,7 @@ export class PokerScene extends Phaser.Scene {
     showPlayerActions() {
         const toCall = this.amountToCall(0);
         const raiseCost = this.currentBet + this.bigBlind - this.roundBets[0];
-        const stake = Number(globalThis.STAKE ?? 0);
+        const stake = Number(STAKE ?? 0);
         this.foldButton.setVisible(true).setText("FOLD");
         this.callButton.setVisible(true).setText(toCall > 0 ? `CALL $${toCall}` : "CHECK");
         this.raiseButton.setVisible(true).setText(`RAISE $${raiseCost}`);
@@ -731,7 +731,7 @@ export class PokerScene extends Phaser.Scene {
         } else if (action === "raise") {
             const targetBet = this.currentBet + this.bigBlind;
             const amount = targetBet - this.roundBets[index];
-            if (index === 0 && Number(globalThis.STAKE ?? 0) < amount) return;
+            if (index === 0 && Number(STAKE ?? 0) < amount) return;
             this.addToPot(index, amount);
             this.currentBet = targetBet;
             this.raisesThisRound++;
@@ -740,7 +740,7 @@ export class PokerScene extends Phaser.Scene {
             this.resultText.setText(`${name} raises to $${targetBet}`);
         } else {
             const amount = this.amountToCall(index);
-            if (index === 0 && Number(globalThis.STAKE ?? 0) < amount) return;
+            if (index === 0 && Number(STAKE ?? 0) < amount) return;
             this.addToPot(index, amount);
             this.hasActed[index] = true;
             this.resultText.setText(amount > 0 ? `${name} calls $${amount}` : `${name} checks`);
@@ -757,8 +757,8 @@ export class PokerScene extends Phaser.Scene {
         this.currentPot += amount;
         this.potChipValues.push(...this.chipValuesForAmount(amount));
         if (index === 0) {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) - amount;
-            this.navbar.setStake(globalThis.STAKE);
+            STAKE = Number(STAKE ?? 0) - amount;
+            this.navbar.setStake(STAKE);
         }
         this.renderPotChips();
     }
@@ -839,7 +839,7 @@ export class PokerScene extends Phaser.Scene {
     awardFoldWin() {
         const winnerIndex = this.folded.findIndex((folded) => !folded);
         if (winnerIndex === 0) {
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + this.currentPot;
+            STAKE = Number(STAKE ?? 0) + this.currentPot;
         }
         this.resultText.setText(`${this.seatNames[winnerIndex]} WINS $${this.currentPot} • ALL OTHERS FOLDED`);
         this.completeHand();
@@ -945,7 +945,7 @@ export class PokerScene extends Phaser.Scene {
 
         if (playerWon) {
             const payout = Math.floor(this.currentPot / winners.length / 5) * 5;
-            globalThis.STAKE = Number(globalThis.STAKE ?? 0) + payout;
+            STAKE = Number(STAKE ?? 0) + payout;
             this.resultText.setText(winners.length === 1
                 ? `YOU WIN — ${playerScore.name}`
                 : `SPLIT POT (${winners.length} WAYS) — ${playerScore.name}`);
@@ -963,9 +963,9 @@ export class PokerScene extends Phaser.Scene {
     completeHand() {
         this.roundActive = false;
         this.hideActionButtons();
-        this.navbar.setStake(globalThis.STAKE);
+        this.navbar.setStake(STAKE);
         this.dealerIndex = (this.dealerIndex + 1) % TOTAL_PLAYERS;
-        globalThis.POKER_DEALER_INDEX = this.dealerIndex;
+        POKER_DEALER_INDEX = this.dealerIndex;
         this.buildChipStacks();
         this.updateGameButtons();
         const { littleBlindIndex, bigBlindIndex } = this.getBlindPositions();
@@ -984,7 +984,7 @@ export class PokerScene extends Phaser.Scene {
             : bigBlindIndex === 0 ? this.bigBlind : 0;
         const canDeal = !this.roundActive
             && this.betPlaced >= minimumAnte
-            && Number(globalThis.STAKE ?? 0) >= this.betPlaced + playerBlind;
+            && Number(STAKE ?? 0) >= this.betPlaced + playerBlind;
         this.setButtonEnabled(this.dealButton, canDeal);
         this.setButtonEnabled(this.settingsButton, !this.roundActive);
         this.setButtonEnabled(this.exitButton, !this.roundActive);

@@ -11,12 +11,19 @@ export default class HubScene extends Phaser.Scene {
     }
 
     create() {
+        console.log(TEST);
+        if (TEST) {
+            BANK_BALANCE = 5000;
+            STAKE = 1000;
+            GAMBLER_NAME = "max";
 
-        globalThis.BANK_BALANCE ??= 5000;
-        globalThis.STAKE ??= 1000;
+        }
+        else {
+            BANK_BALANCE = 0;
+            STAKE = 0;
+            GAMBLER_NAME = "";
+        }
 
-        //globalThis.GAMBLER_NAME ??= "";
-        globalThis.GAMBLER_NAME = "max";
         this.navbar = new Navbar(this);
         this.menu = this.add.image(0, this.navbar.height, 'menu').setOrigin(0, 0);
 
@@ -48,7 +55,7 @@ export default class HubScene extends Phaser.Scene {
                 .setInteractive({ useHandCursor: true });
 
             button.on('pointerdown', () => {
-                if (item.text !== "BANK" && globalThis.STAKE <= 0) {
+                if (item.text !== "BANK" && STAKE <= 0) {
                     this.showNoMoneyMessage();
                     return;
                 }
