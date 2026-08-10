@@ -12,6 +12,10 @@ export class Navbar {
     constructor(scene, { onOption } = {}) {
         this.scene = scene;
         this.onOption = onOption;
+        this.destroyed = false;
+        scene.events.once("shutdown", () => {
+            this.destroyed = true;
+        });
         this.image = scene.add.image(0, 0, Navbar.textureKey)
             .setOrigin(0, 0)
             .setDepth(1000);
@@ -60,7 +64,7 @@ export class Navbar {
             color: "#000000"
         }).setOrigin(0.5).setDepth(1001);
 
-        this.kenoCountdownText = scene.add.text(285, 25, "", {
+        this.kenoCountdownText = scene.add.text(680, 15, "", {
             fontSize: "15px",
             fontFamily: "Tahoma",
             fontStyle: "bold",
@@ -71,15 +75,30 @@ export class Navbar {
     }
 
     setGambler(name) {
+        if (!this.isTextActive(this.gamblerText)) return;
         this.gamblerText.setText(`Gambler: ${name || "None"}`);
     }
 
     setStake(value) {
+        if (!this.isTextActive(this.stakeText)) return;
         this.stakeText.setText(`Stake: ${this.formatDollars(value)}`);
     }
 
     setKenoCountdown(value) {
+        if (!this.isTextActive(this.kenoCountdownText)) return;
         this.kenoCountdownText.setText(value || "");
+    }
+
+    isTextActive(text) {
+        return Boolean(
+            !this.destroyed
+            && text?.active
+            && text.scene
+            && text.canvas
+            && text.context
+            && text.texture
+            && text.frame
+        );
     }
 
     refreshAccount() {

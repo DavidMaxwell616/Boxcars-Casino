@@ -19,6 +19,7 @@ export class BlackjackScene extends Phaser.Scene {
             frameWidth: 30,
             frameHeight: 27
         });
+        this.load.audio("blackjackChipStack", "assets/sounds/CHIPSTACK.WAV");
     }
 
     create() {
@@ -44,6 +45,8 @@ export class BlackjackScene extends Phaser.Scene {
         this.chipSprites = [];
         this.bankrollChipStacks = [];
         this.wageredChips = [];
+        this.dealerWagerChips = [];
+        this.dealerWagerSignature = "";
 
         // Interior of the white betting square in the resized background.
         this.betZoneRect = new Phaser.Geom.Rectangle(42, 241, 228, 220);
@@ -155,6 +158,17 @@ export class BlackjackScene extends Phaser.Scene {
                 color: "#ffffff"
             }
         ).setOrigin(0.5, 0);
+        this.dealerChipLabel = this.add.text(
+            this.betZoneRect.centerX,
+            this.betZoneRect.y + 8,
+            "DEALER",
+            {
+                fontFamily: "Arial",
+                fontSize: "12px",
+                fontStyle: "bold",
+                color: "#ffffff"
+            }
+        ).setOrigin(0.5, 0).setDepth(9).setVisible(false);
         this.buildBankrollStacks();
 
         this.cardLayer = this.add.container(0, 0);
@@ -369,6 +383,7 @@ export class BlackjackScene extends Phaser.Scene {
                 ) {
                     this.returnWagerChipToStack(chip);
                 } else if (!this.roundActive && droppedInBetZone) {
+                    this.stackWagerChipIfOverlapping(chip);
                     chip.setData({ betX: chip.x, betY: chip.y });
                 } else {
                     chip.setPosition(chip.getData("betX"), chip.getData("betY"));
@@ -385,6 +400,7 @@ export class BlackjackScene extends Phaser.Scene {
             }
 
             this.betPlaced += chip.getData("value");
+            this.stackWagerChipIfOverlapping(chip);
             this.wageredChips.push(chip);
             chip.setData({ betX: chip.x, betY: chip.y });
 
@@ -395,6 +411,54 @@ export class BlackjackScene extends Phaser.Scene {
             this.makeBankrollChipDraggable(nextTopChip);
             this.updateTexts();
         });
+    }
+
+    stackWagerChipIfOverlapping(chip) {
+        const overlappingChip = this.wageredChips
+            .filter((candidate) => candidate !== chip && candidate.active)
+            .map((candidate) => ({
+                chip: candidate,
+                distance: Phaser.Math.Distance.Between(
+                    chip.x,
+                    chip.y - chip.displayHeight / 2,
+                    candidate.x,
+                    candidate.y - candidate.displayHeight / 2
+                )
+            }))
+            .filter(({ chip: candidate }) => Phaser.Geom.Intersects.RectangleToRectangle(
+                chip.getBounds(),
+                candidate.getBounds()
+            ))
+            .sort((a, b) => a.distance - b.distance)[0]?.chip;
+
+        if (!overlappingChip) return false;
+
+        const stack = [overlappingChip];
+        for (let index = 0; index < stack.length; index++) {
+            const stackChip = stack[index];
+            this.wageredChips.forEach((candidate) => {
+                if (
+                    candidate !== chip
+                    && candidate.active
+                    && !stack.includes(candidate)
+                    && Phaser.Geom.Intersects.RectangleToRectangle(
+                        stackChip.getBounds(),
+                        candidate.getBounds()
+                    )
+                ) {
+                    stack.push(candidate);
+                }
+            });
+        }
+
+        chip.setPosition(
+            overlappingChip.x,
+            Math.min(...stack.map((stackChip) => stackChip.y)) - 7
+        );
+        if (this.cache.audio.exists("blackjackChipStack")) {
+            this.sound.play("blackjackChipStack");
+        }
+        return true;
     }
 
     returnWagerChipToStack(chip) {
@@ -419,6 +483,107 @@ export class BlackjackScene extends Phaser.Scene {
         );
         this.makeBankrollChipDraggable(topChip);
         this.updateTexts();
+    }
+
+    syncDealerWagerChips() {
+        const values = this.wageredChips
+            .filter((chip) => chip.active)
+            .map((chip) => chip.getData("value"))
+            .sort((a, b) => b - a);
+        const signature = values.join(",");
+
+        if (signature === this.dealerWagerSignature) return;
+
+        this.dealerWagerSignature = signature;
+        this.dealerChipLabel.setVisible(values.length > 0);
+
+        const chipFrames = new Map([
+            [5, 0],
+            [10, 1],
+            [20, 2],
+            [50, 3],
+            [100, 4],
+            [500, 5],
+            [1000, 6],
+            [5000, 7]
+        ]);
+        const desiredCounts = new Map();
+        values.forEach((value) => {
+            desiredCounts.set(value, (desiredCounts.get(value) ?? 0) + 1);
+        });
+
+        const retainedCounts = new Map();
+        this.dealerWagerChips = this.dealerWagerChips.filter((chip) => {
+            const value = chip.getData("value");
+            const retained = retainedCounts.get(value) ?? 0;
+            if (retained < (desiredCounts.get(value) ?? 0)) {
+                retainedCounts.set(value, retained + 1);
+                return true;
+            }
+            this.tweens.killTweensOf(chip);
+            chip.destroy();
+            return false;
+        });
+
+        for (const [value, desiredCount] of desiredCounts) {
+            const retained = retainedCounts.get(value) ?? 0;
+            for (let index = retained; index < desiredCount; index++) {
+                const chip = this.add.sprite(
+                    this.dealerScoreText.x + 70,
+                    this.dealerScoreText.y + 90,
+                    "chips",
+                    chipFrames.get(value)
+                ).setOrigin(0.5, 1).setDepth(8).setAlpha(0.85);
+                chip.setData({ value, newlyPlaced: true });
+                this.dealerWagerChips.push(chip);
+            }
+        }
+
+        if (values.length === 0) return;
+
+        const groupedValues = [...new Set(values)];
+        const stackSpacing = Math.min(34, 190 / Math.max(1, groupedValues.length - 1));
+        const firstStackX = this.betZoneRect.centerX
+            - stackSpacing * (groupedValues.length - 1) / 2;
+        const stackBottomY = this.betZoneRect.y + 76;
+
+        groupedValues.forEach((value, stackIndex) => {
+            const stack = this.dealerWagerChips.filter(
+                (chip) => chip.getData("value") === value
+            );
+            stack.forEach((chip, chipIndex) => {
+                const newlyPlaced = chip.getData("newlyPlaced") === true;
+                chip.setData("newlyPlaced", false);
+                this.tweens.killTweensOf(chip);
+                this.tweens.add({
+                    targets: chip,
+                    x: firstStackX + stackIndex * stackSpacing,
+                    y: stackBottomY - chipIndex * 7,
+                    alpha: 1,
+                    duration: newlyPlaced ? 480 : 220,
+                    ease: newlyPlaced ? "Cubic.Out" : "Sine.Out",
+                    onComplete: () => {
+                        if (
+                            newlyPlaced
+                            && chipIndex > 0
+                            && this.cache.audio.exists("blackjackChipStack")
+                        ) {
+                            this.sound.play("blackjackChipStack");
+                        }
+                    }
+                });
+            });
+        });
+    }
+
+    clearDealerWagerChips() {
+        this.dealerWagerChips.forEach((chip) => {
+            this.tweens.killTweensOf(chip);
+            if (chip.active) chip.destroy();
+        });
+        this.dealerWagerChips = [];
+        this.dealerWagerSignature = "";
+        this.dealerChipLabel.setVisible(false);
     }
 
     startRound() {
@@ -993,6 +1158,7 @@ export class BlackjackScene extends Phaser.Scene {
         const hadInsurance = this.insuranceBet > 0;
         this.insuranceStatusText.setText("");
         this.insuranceBet = 0;
+        this.clearDealerWagerChips();
         if (outcome === "win" && !hadInsurance) {
             this.bankrollChipStacks.forEach((stack) => {
                 const bankrollChips = stack.filter(
@@ -1086,6 +1252,7 @@ export class BlackjackScene extends Phaser.Scene {
     completeSplitSettlement() {
         this.insuranceStatusText.setText("");
         this.insuranceBet = 0;
+        this.clearDealerWagerChips();
         this.chipSprites.forEach((chip) => {
             if (chip.active) chip.destroy();
         });
@@ -1149,6 +1316,7 @@ export class BlackjackScene extends Phaser.Scene {
     }
 
     updateTexts() {
+        this.syncDealerWagerChips();
         const totalPlayerWager = this.handBets.length > 0
             ? this.handBets.reduce((total, bet) => total + bet, 0)
             : this.betPlaced;

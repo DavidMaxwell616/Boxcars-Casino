@@ -3,13 +3,12 @@ export class SplashScene extends Phaser.Scene {
     constructor() {
         super("Splash");
     }
-
     preload() {
-        this.load.path = '../assets/images/';
-        this.load.spritesheet('splash', 'splash2.png', { frameWidth: 800, frameHeight: 600 });
-        this.load.image('maxxdaddy', 'maxxdaddy.gif');
+        this.load.spritesheet('splash', './assets/images/splash2.png', { frameWidth: 800, frameHeight: 600 });
+        this.load.image('maxxdaddy', './assets/images/maxxdaddy.gif');
 
     }
+
 
     create() {
         this.splash = this.add.sprite(0, 0, 'splash').setOrigin(0, 0);
