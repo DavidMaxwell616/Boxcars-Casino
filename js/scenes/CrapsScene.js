@@ -1,5 +1,13 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
 import { Navbar } from "../ui/Navbar.js";
+import { drawBevelButton } from "../ui/Win95.js";
+import {
+    CHIP_SOUND_KEYS,
+    DIE_SOUND_KEYS,
+    playRandomSoundEffect,
+    playSoundEffect,
+    preloadSoundEffects
+} from "../SoundEffects.js";
 
 const TOTAL_PLAYERS = 4;
 const POINT_NUMBERS = [4, 5, 6, 8, 9, 10];
@@ -33,8 +41,7 @@ export class CrapsScene extends Phaser.Scene {
             frameWidth: 75,
             frameHeight: 75
         });
-        this.load.audio("crapsShake", "assets/sounds/DIESHAK0.WAV");
-        this.load.audio("crapsLand", "assets/sounds/DIEFLOOR.WAV");
+        preloadSoundEffects(this, [...CHIP_SOUND_KEYS, ...DIE_SOUND_KEYS]);
         Navbar.preload(this);
     }
 
@@ -112,11 +119,20 @@ export class CrapsScene extends Phaser.Scene {
         this.rulesBtnRect = new Phaser.Geom.Rectangle(535, 558, 78, 38);
 
         const buttonGraphics = this.add.graphics().setDepth(20);
-        this.drawBevelButton(buttonGraphics, this.exitBtnRect);
-        this.drawBevelButton(buttonGraphics, this.placeBtnRect);
-        this.drawBevelButton(buttonGraphics, this.shootBtnRect);
-        this.drawBevelButton(buttonGraphics, this.betTypeBtnRect);
-        this.drawBevelButton(buttonGraphics, this.rulesBtnRect);
+        [
+            this.exitBtnRect,
+            this.placeBtnRect,
+            this.shootBtnRect,
+            this.betTypeBtnRect,
+            this.rulesBtnRect
+        ].forEach((rect) => drawBevelButton(
+            buttonGraphics,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+            false
+        ));
 
         this.exitBtnText = this.makeButtonText(this.exitBtnRect, "Exit", 17);
         this.placeBtnText = this.makeButtonText(this.placeBtnRect, "Place", 17);
@@ -383,7 +399,10 @@ export class CrapsScene extends Phaser.Scene {
         if (chip.getData("dragConfigured")) return;
         chip.setData("dragConfigured", true);
 
-        chip.on("dragstart", () => this.children.bringToTop(chip));
+        chip.on("dragstart", () => {
+            this.children.bringToTop(chip);
+            playSoundEffect(this, "chipPickup");
+        });
         chip.on("drag", (pointer, dragX, dragY) => chip.setPosition(dragX, dragY));
         chip.on("dragend", () => {
             const droppedBetType = this.getBetTypeAt(
@@ -526,15 +545,22 @@ export class CrapsScene extends Phaser.Scene {
             return;
         }
 
-        chip.disableInteractive();
         const contractPoint = (this.selectedBetType === "pass"
             || this.selectedBetType === "dontPass")
             ? this.point
             : null;
+        const layoutKey = contractPoint
+            ? `${this.selectedBetType}:${contractPoint}`
+            : this.selectedBetType;
+        chip.disableInteractive();
+        const joinsStack = this.wageredChips.some(
+            (wager) => this.getWagerLayoutKey(wager) === layoutKey
+        );
         chip.setData({ betType: this.selectedBetType, contractPoint });
         this.betPlaced += chip.getData("value");
         this.wageredChips.push(chip);
         this.layoutWageredChips();
+        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
 
         const stack = this.bankrollChipStacks[chip.getData("stackIndex")];
         const nextTopChip = [...stack].reverse().find(
@@ -779,7 +805,10 @@ export class CrapsScene extends Phaser.Scene {
         this.disableBankrollChips();
         this.updateTexts();
         this.rollText.setText(`${this.playerNames[this.shooterIndex]} SHOOTING...`);
-        this.playSound("crapsShake");
+        playRandomSoundEffect(
+            this,
+            Array.from({ length: 8 }, (_, index) => `dieShake${index}`)
+        );
 
         this.animateDice((dieOne, dieTwo) => this.resolveRoll(dieOne, dieTwo));
     }
@@ -791,7 +820,7 @@ export class CrapsScene extends Phaser.Scene {
             results[dieIndex] = value;
             stoppedDice++;
             if (stoppedDice < 2) return;
-            this.playSound("crapsLand");
+            playSoundEffect(this, "dieOnDie", { volume: 0.75 });
             onComplete(results[0], results[1]);
         };
 
@@ -832,7 +861,8 @@ export class CrapsScene extends Phaser.Scene {
             duration: Phaser.Math.Between(600, 780),
             ease: "Cubic.In",
             onComplete: () => {
-                this.playSound("crapsLand");
+                playSoundEffect(this, "dieWall");
+                playSoundEffect(this, "dieSlide", { volume: 0.55 });
                 this.tweens.add({
                     targets: die,
                     x: stopX,
@@ -843,6 +873,7 @@ export class CrapsScene extends Phaser.Scene {
                     onComplete: () => {
                         frameTimer.remove(false);
                         die.setAngle(0).setFrame(finalFrame);
+                        playSoundEffect(this, "dieFloor");
                         onComplete(dieIndex, finalFrame - 7);
                     }
                 });
@@ -1262,22 +1293,6 @@ export class CrapsScene extends Phaser.Scene {
         return this.add.sprite(x, y, "dice", 8)
             .setDepth(40)
             .setVisible(false);
-    }
-
-    drawBevelButton(graphics, rect) {
-        graphics.fillStyle(0xc0c0c0, 1).fillRect(rect.x, rect.y, rect.width, rect.height);
-        graphics.lineStyle(2, 0xffffff, 1)
-            .beginPath()
-            .moveTo(rect.x, rect.bottom)
-            .lineTo(rect.x, rect.y)
-            .lineTo(rect.right, rect.y)
-            .strokePath();
-        graphics.lineStyle(2, 0x666666, 1)
-            .beginPath()
-            .moveTo(rect.right, rect.y)
-            .lineTo(rect.right, rect.bottom)
-            .lineTo(rect.x, rect.bottom)
-            .strokePath();
     }
 
     playSound(key) {

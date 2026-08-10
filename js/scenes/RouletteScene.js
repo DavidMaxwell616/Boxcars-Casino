@@ -1,5 +1,11 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
 import { Navbar } from "../ui/Navbar.js";
+import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
+import {
+    CHIP_SOUND_KEYS,
+    playSoundEffect,
+    preloadSoundEffects
+} from "../SoundEffects.js";
 
 export class RouletteScene extends Phaser.Scene {
     constructor() {
@@ -13,6 +19,7 @@ export class RouletteScene extends Phaser.Scene {
             frameWidth: 30,
             frameHeight: 27
         });
+        preloadSoundEffects(this, CHIP_SOUND_KEYS);
         Navbar.preload(this);
         this.load.spritesheet(
             "rouletteWheelSpinSheet",
@@ -106,33 +113,40 @@ export class RouletteScene extends Phaser.Scene {
             }
         ).setOrigin(0.5).setDepth(50);
 
-        this.spinButton = this.add.text(377, 576, "SPIN", {
-            fontFamily: "Arial",
-            fontSize: "19px",
-            fontStyle: "bold",
-            color: "#000000",
-            padding: { x: 20, y: 5 }
-        })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
+        this.spinButton = this.makeWin95Button(377, 576, 84, 34, "SPIN", 19);
+        this.exitButton = this.makeWin95Button(37, 576, 62, 32, "EXIT", 17);
 
-        this.exitButton = this.add.text(37, 576, "EXIT", {
-            fontFamily: "Arial",
-            fontSize: "17px",
-            fontStyle: "bold",
-            color: "#000000",
-            padding: { x: 13, y: 5 }
-        })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true });
-
-        this.spinButton.on("pointerdown", () => this.spinWheel());
+        this.spinButton.getData("win95HitZone")
+            .on("pointerdown", () => this.spinWheel());
         this.wheel.on("pointerdown", () => this.spinWheel());
-        this.exitButton.on("pointerdown", () => this.scene.start("Hub"));
+        this.exitButton.getData("win95HitZone")
+            .on("pointerdown", () => this.scene.start("Hub"));
         this.input.keyboard.on("keydown-SPACE", () => this.spinWheel());
 
         this.navbar = new Navbar(this);
         this.updateSpinButtonState();
+    }
+
+    makeWin95Button(x, y, width, height, label, fontSize) {
+        const graphics = this.add.graphics();
+        const left = x - width / 2;
+        const top = y - height / 2;
+        const button = drawWin95Button(
+            this,
+            graphics,
+            left,
+            top,
+            width,
+            height,
+            label,
+            fontSize
+        );
+        const hitZone = this.add.zone(x, y, width, height)
+            .setInteractive({ useHandCursor: true });
+        button.setData("win95Graphics", graphics);
+        button.setData("win95HitZone", hitZone);
+        button.setData("win95Bounds", { x: left, y: top, width, height });
+        return button;
     }
 
     buildBankrollStacks() {
@@ -232,6 +246,7 @@ export class RouletteScene extends Phaser.Scene {
             if (!chip.getData?.("rouletteChip")) return;
             this.children.bringToTop(chip);
             chip.setScale(1.08);
+            playSoundEffect(this, "chipPickup");
         });
 
         this.input.on("drag", (pointer, chip, dragX, dragY) => {
@@ -285,6 +300,9 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     placeBetChip(chip, bet) {
+        const joinsStack = this.wageredChips.some((candidate) => (
+            Phaser.Math.Distance.Between(candidate.x, candidate.y, chip.x, chip.y) < 24
+        ));
         const wager = {
             chip,
             value: chip.getData("value"),
@@ -295,6 +313,7 @@ export class RouletteScene extends Phaser.Scene {
         chip.setData({ betX: chip.x, betY: chip.y });
         this.bets.push(wager);
         this.wageredChips.push(chip);
+        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
         this.wager += wager.value;
         this.refreshChipStack(chip.getData("stackIndex"));
         this.showCurrentBet(wager);
@@ -308,6 +327,11 @@ export class RouletteScene extends Phaser.Scene {
         wager.numbers = bet.numbers;
         wager.payout = bet.payout;
         chip.setData({ betX: chip.x, betY: chip.y });
+        const joinsStack = this.wageredChips.some((candidate) => (
+            candidate !== chip
+            && Phaser.Math.Distance.Between(candidate.x, candidate.y, chip.x, chip.y) < 24
+        ));
+        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
         this.showCurrentBet(wager);
     }
 
@@ -532,10 +556,22 @@ export class RouletteScene extends Phaser.Scene {
 
         const enabled = this.hasValidBet() && !this.isSpinning;
         this.spinButton.setColor(enabled ? "#000000" : "#7f7f7f");
+        const graphics = this.spinButton.getData("win95Graphics");
+        const bounds = this.spinButton.getData("win95Bounds");
+        graphics.clear();
+        drawBevelButton(
+            graphics,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            !enabled
+        );
+        const hitZone = this.spinButton.getData("win95HitZone");
         if (enabled) {
-            this.spinButton.setInteractive({ useHandCursor: true });
+            hitZone.setInteractive({ useHandCursor: true });
         } else {
-            this.spinButton.disableInteractive();
+            hitZone.disableInteractive();
         }
     }
 

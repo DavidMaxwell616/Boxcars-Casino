@@ -1,4 +1,5 @@
 import { Navbar } from "../ui/Navbar.js";
+import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
 
 let new_bank_balance = 0;
 let new_gambler_name = "";
@@ -24,10 +25,17 @@ export class BankScene extends Phaser.Scene {
         this.newGamblerOkButton = null;
         this.newGamblerCancelButton = null;
         this.newGamblerCloseButton = null;
+        this.newGamblerButtonGraphics = null;
+        this.newGamblerOkLabel = null;
+        this.newGamblerCancelLabel = null;
         this.changeStakeWindow = null;
         this.changeStakeInput = null;
         this.changeStakeOkButton = null;
         this.changeStakeCancelButton = null;
+        this.changeStakeMainButtonGraphics = null;
+        this.changeStakeDialogButtonGraphics = null;
+        this.changeStakeOkLabel = null;
+        this.changeStakeCancelLabel = null;
         this.stakeMessageBlocker = null;
         this.stakeTooHighMessage = null;
         this.stakeTooHighTimer = null;
@@ -71,38 +79,64 @@ export class BankScene extends Phaser.Scene {
             }
         );
 
-        // The controls are part of bank.png, so transparent zones make them clickable.
+        this.changeStakeMainButtonGraphics = this.add.graphics();
+        this.changeStakeButtonLabel = drawWin95Button(
+            this,
+            this.changeStakeMainButtonGraphics,
+            20,
+            navBarHeight + 96,
+            225,
+            35,
+            "Change Stake",
+            18,
+            { disabled: Number(BANK_BALANCE) <= 0, depth: 2 }
+        );
         this.changeStakeButton = this.add.zone(20, navBarHeight + 96, 225, 35)
-            .setOrigin(0, 0);
+            .setOrigin(0, 0)
+            .setDepth(3);
 
         this.changeStakeButton.on("pointerdown", () => {
             this.showChangeStake();
         });
 
-        this.changeStakeButtonLabel = this.add.text(
-            132,
-            navBarHeight + 113,
-            "Change Stake",
-            {
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: "22px",
-                fontStyle: "bold",
-                color: "#000000"
-            }
-        ).setOrigin(0.5);
-
         this.updateChangeStakeButtonState();
 
+        const newGamblerGraphics = this.add.graphics();
+        drawWin95Button(
+            this,
+            newGamblerGraphics,
+            20,
+            navBarHeight + 148,
+            225,
+            35,
+            "New Gambler",
+            18,
+            { depth: 2 }
+        );
         const newGamblerButton = this.add.zone(20, navBarHeight + 148, 225, 35)
             .setOrigin(0, 0)
+            .setDepth(3)
             .setInteractive({ useHandCursor: true });
 
         newGamblerButton.on("pointerdown", () => {
             this.showNewGambler();
         });
 
+        const returnGraphics = this.add.graphics();
+        drawWin95Button(
+            this,
+            returnGraphics,
+            20,
+            navBarHeight + 409,
+            225,
+            35,
+            "Return",
+            18,
+            { depth: 2 }
+        );
         const returnButton = this.add.zone(20, navBarHeight + 409, 225, 35)
             .setOrigin(0, 0)
+            .setDepth(3)
             .setInteractive({ useHandCursor: true });
 
         returnButton.on("pointerdown", () => {
@@ -122,9 +156,15 @@ export class BankScene extends Phaser.Scene {
             this.newGamblerOkButton.setVisible(true);
             this.newGamblerCancelButton.setVisible(true);
             this.newGamblerCloseButton.setVisible(true);
+            this.newGamblerButtonGraphics.setVisible(true);
+            this.newGamblerOkLabel.setVisible(true);
+            this.newGamblerCancelLabel.setVisible(true);
             this.children.bringToTop(this.newGamblerWindow);
+            this.children.bringToTop(this.newGamblerButtonGraphics);
             this.children.bringToTop(this.newGamblerNameInput);
             this.children.bringToTop(this.bankDepositInput);
+            this.children.bringToTop(this.newGamblerOkLabel);
+            this.children.bringToTop(this.newGamblerCancelLabel);
             this.children.bringToTop(this.newGamblerOkButton);
             this.children.bringToTop(this.newGamblerCancelButton);
             this.children.bringToTop(this.newGamblerCloseButton);
@@ -171,6 +211,28 @@ export class BankScene extends Phaser.Scene {
         this.newGamblerNameInput.node.focus();
 
         new_bank_balance = BANK_BALANCE;
+
+        this.newGamblerButtonGraphics = this.add.graphics();
+        this.newGamblerOkLabel = drawWin95Button(
+            this,
+            this.newGamblerButtonGraphics,
+            windowLeft + 26,
+            windowTop + 356,
+            118,
+            40,
+            "OK",
+            18
+        );
+        this.newGamblerCancelLabel = drawWin95Button(
+            this,
+            this.newGamblerButtonGraphics,
+            windowLeft + 226,
+            windowTop + 356,
+            118,
+            40,
+            "Cancel",
+            18
+        );
 
         this.bankDepositInput = this.add.dom(
             windowLeft + 20,
@@ -262,6 +324,9 @@ export class BankScene extends Phaser.Scene {
         this.newGamblerOkButton.setVisible(false);
         this.newGamblerCancelButton.setVisible(false);
         this.newGamblerCloseButton.setVisible(false);
+        this.newGamblerButtonGraphics.setVisible(false);
+        this.newGamblerOkLabel.setVisible(false);
+        this.newGamblerCancelLabel.setVisible(false);
     }
 
     updateChangeStakeButtonState() {
@@ -276,6 +341,15 @@ export class BankScene extends Phaser.Scene {
         this.changeStakeButtonLabel
             .setVisible(true)
             .setColor(enabled ? "#000000" : "#7f7f7f");
+        this.changeStakeMainButtonGraphics.clear();
+        drawBevelButton(
+            this.changeStakeMainButtonGraphics,
+            this.changeStakeButton.x,
+            this.changeStakeButton.y,
+            this.changeStakeButton.width,
+            this.changeStakeButton.height,
+            !enabled
+        );
     }
 
     showChangeStake() {
@@ -288,8 +362,14 @@ export class BankScene extends Phaser.Scene {
             this.changeStakeInput.setVisible(true);
             this.changeStakeOkButton.setVisible(true);
             this.changeStakeCancelButton.setVisible(true);
+            this.changeStakeDialogButtonGraphics.setVisible(true);
+            this.changeStakeOkLabel.setVisible(true);
+            this.changeStakeCancelLabel.setVisible(true);
             this.children.bringToTop(this.changeStakeWindow);
+            this.children.bringToTop(this.changeStakeDialogButtonGraphics);
             this.children.bringToTop(this.changeStakeInput);
+            this.children.bringToTop(this.changeStakeOkLabel);
+            this.children.bringToTop(this.changeStakeCancelLabel);
             this.children.bringToTop(this.changeStakeOkButton);
             this.children.bringToTop(this.changeStakeCancelButton);
             this.changeStakeInput.node.focus();
@@ -328,6 +408,28 @@ export class BankScene extends Phaser.Scene {
         this.changeStakeInput.node.step = "0.01";
         this.changeStakeInput.node.value = String(STAKE);
         this.changeStakeInput.node.setAttribute("aria-label", "New Stake");
+
+        this.changeStakeDialogButtonGraphics = this.add.graphics();
+        this.changeStakeOkLabel = drawWin95Button(
+            this,
+            this.changeStakeDialogButtonGraphics,
+            windowLeft + 38,
+            windowTop + 365,
+            150,
+            50,
+            "OK",
+            22
+        );
+        this.changeStakeCancelLabel = drawWin95Button(
+            this,
+            this.changeStakeDialogButtonGraphics,
+            windowLeft + 292,
+            windowTop + 365,
+            151,
+            50,
+            "Cancel",
+            22
+        );
 
         this.changeStakeOkButton = this.add.zone(
             windowLeft + 38,
@@ -373,6 +475,9 @@ export class BankScene extends Phaser.Scene {
         this.changeStakeInput.setVisible(false);
         this.changeStakeOkButton.setVisible(false);
         this.changeStakeCancelButton.setVisible(false);
+        this.changeStakeDialogButtonGraphics.setVisible(false);
+        this.changeStakeOkLabel.setVisible(false);
+        this.changeStakeCancelLabel.setVisible(false);
     }
 
     showStakeTooHighMessage() {

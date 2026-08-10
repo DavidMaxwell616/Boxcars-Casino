@@ -1,4 +1,5 @@
 import { Navbar } from "../ui/Navbar.js";
+import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
 
 export class SlotsScene extends Phaser.Scene {
     constructor() {
@@ -46,11 +47,12 @@ export class SlotsScene extends Phaser.Scene {
             this.makeButtonLabel(575, 576, "$3 BET", 20)
         ];
 
-        this.exitButton.on("pointerdown", () => this.scene.start("Hub"));
+        this.exitButton.getData("win95HitZone")
+            .on("pointerdown", () => this.scene.start("Hub"));
         this.betButtons.forEach((button, index) => {
             const bet = index + 1;
             button.setData("bet", bet);
-            button.on("pointerdown", () => this.spin(bet));
+            button.getData("win95HitZone").on("pointerdown", () => this.spin(bet));
         });
 
         this.navbar = new Navbar(this);
@@ -95,16 +97,29 @@ export class SlotsScene extends Phaser.Scene {
     }
 
     makeButtonLabel(x, y, label, fontSize) {
-        return this.add.text(x, y, label, {
-            fontFamily: "Arial, sans-serif",
-            fontSize: `${fontSize}px`,
-            fontStyle: "bold",
-            color: "#000000",
-            padding: { x: 22, y: 6 }
-        })
-            .setOrigin(0.5)
+        const width = label === "EXIT" ? 84 : 116;
+        const height = 36;
+        const left = x - width / 2;
+        const top = y - height / 2;
+        const graphics = this.add.graphics().setDepth(50);
+        const button = drawWin95Button(
+            this,
+            graphics,
+            left,
+            top,
+            width,
+            height,
+            label,
+            fontSize,
+            { depth: 50 }
+        );
+        const hitZone = this.add.zone(x, y, width, height)
             .setDepth(50)
             .setInteractive({ useHandCursor: true });
+        button.setData("win95Graphics", graphics);
+        button.setData("win95HitZone", hitZone);
+        button.setData("win95Bounds", { x: left, y: top, width, height });
+        return button;
     }
 
     spin(bet) {
@@ -214,10 +229,22 @@ export class SlotsScene extends Phaser.Scene {
         this.betButtons.forEach((button) => {
             const enabled = !this.isSpinning && stake >= button.getData("bet");
             button.setColor(enabled ? "#000000" : "#7f7f7f");
+            const graphics = button.getData("win95Graphics");
+            const bounds = button.getData("win95Bounds");
+            graphics.clear();
+            drawBevelButton(
+                graphics,
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                !enabled
+            );
+            const hitZone = button.getData("win95HitZone");
             if (enabled) {
-                button.setInteractive({ useHandCursor: true });
+                hitZone.setInteractive({ useHandCursor: true });
             } else {
-                button.disableInteractive();
+                hitZone.disableInteractive();
             }
         });
     }

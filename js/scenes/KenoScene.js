@@ -1,3 +1,5 @@
+import { RulesPopup } from "../ui/RulesPopup.js";
+
 const PAYOUTS = {
     1: { 1: 2 },
     2: { 2: 13 },
@@ -55,6 +57,7 @@ export class KenoScene extends Phaser.Scene {
         this.createNumberGrid();
         this.createTicketFields();
         this.createButtons();
+        this.createRulesPopup();
         this.updateTicket();
 
         this.closeButton = this.add.rectangle(
@@ -66,7 +69,10 @@ export class KenoScene extends Phaser.Scene {
             0.001
         ).setDepth(30).setInteractive({ useHandCursor: true });
         this.closeButton.on("pointerdown", () => this.closeModal());
-        this.input.keyboard.on("keydown-ESC", () => this.closeModal());
+        this.input.keyboard.on("keydown-ESC", () => {
+            if (this.rulesPopup?.isOpen) this.closeRulesPopup();
+            else this.closeModal();
+        });
 
         if (this.cache.audio.exists("kenoOpen")) this.sound.play("kenoOpen");
     }
@@ -226,6 +232,52 @@ export class KenoScene extends Phaser.Scene {
         this.exitButton = this.makeButton(this.toX(302), this.toY(276), "Exit", () => {
             this.closeModal();
         });
+        this.rulesButton = this.makeButton(
+            this.toX(182), this.toY(276), "Rules", () => this.openRulesPopup()
+        );
+    }
+
+    createRulesPopup() {
+        this.rulesPopup = new RulesPopup(this, {
+            title: "KENO RULES",
+            leftText:
+                "HOW TO PLAY\n" +
+                "Select 1 to 10 numbers from 1 through 80, or use Quick Pick. Choose a $1, $2, or $3 bet per game and 1 to 5 consecutive games.\n\n" +
+                "Press Draw to buy the ticket. Twenty numbers are selected randomly in each drawing. Your payout depends on how many selected numbers (spots) are caught.\n\n" +
+                "Drawings begin after the displayed countdown. Multi-game tickets continue automatically. Ticket cost equals bet per game multiplied by the number of games.\n\n" +
+                "Payout values at right are multipliers of the per-game bet. Combinations not listed pay zero.",
+            rightText:
+                "PAYOUTS: CAUGHT = MULTIPLIER\n\n" +
+                "1 spot: 1=2x\n" +
+                "2 spots: 2=13x\n" +
+                "3: 2=1x, 3=25x\n" +
+                "4: 3=9x, 4=130x\n" +
+                "5: 3=1x, 4=15x, 5=400x\n" +
+                "6: 4=9x, 5=86x, 6=2067x\n" +
+                "7: 4=3x, 5=23x, 6=273x, 7=8195x\n" +
+                "8: 5=5x, 6=50x, 7=1000x, 8=10000x\n" +
+                "9: 5=5x, 6=25x, 7=200x, 8=4000x, 9=25000x\n" +
+                "10: 0=5x, 5=2x, 6=10x, 7=50x, 8=500x, 9=10000x, 10=100000x",
+            leftFontSize: 13,
+            rightFontSize: 11,
+            onClose: () => this.handleRulesClosed()
+        });
+    }
+
+    openRulesPopup() {
+        this.rulesOpenedAt = Date.now();
+        this.rulesPopup.open();
+    }
+
+    closeRulesPopup() {
+        this.rulesPopup.close();
+    }
+
+    handleRulesClosed() {
+        const pausedFor = Math.max(0, Date.now() - (this.rulesOpenedAt ?? Date.now()));
+        if (this.drawing && this.nextDrawAt) this.nextDrawAt += pausedFor;
+        this.rulesOpenedAt = null;
+        if (this.drawing) this.updateCountdown();
     }
 
     makeButton(x, y, label, callback) {

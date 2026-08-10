@@ -1,5 +1,13 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
 import { Navbar } from "../ui/Navbar.js";
+import { RulesPopup } from "../ui/RulesPopup.js";
+import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
+import {
+    CARD_SOUND_KEYS,
+    CHIP_SOUND_KEYS,
+    playSoundEffect,
+    preloadSoundEffects
+} from "../SoundEffects.js";
 
 const POKER_GAMES = [
     "Five-Card Draw",
@@ -37,6 +45,7 @@ export class PokerScene extends Phaser.Scene {
             frameHeight: 27
         });
         this.load.audio("pokerOpen", "assets/sounds/POKEROPE.WAV");
+        preloadSoundEffects(this, [...CARD_SOUND_KEYS, ...CHIP_SOUND_KEYS]);
         Navbar.preload(this);
     }
 
@@ -68,6 +77,8 @@ export class PokerScene extends Phaser.Scene {
         this.createGameInterface();
         this.createSettingsInterface();
         this.navbar = new Navbar(this);
+        this.createRulesPopup();
+        this.input.keyboard.on("keydown-ESC", () => this.rulesPopup?.close());
         this.showSettings();
     }
 
@@ -152,8 +163,8 @@ export class PokerScene extends Phaser.Scene {
             imageTop + 1018 * scaleY,
             "Cancel"
         );
-        ok.on("pointerdown", () => this.acceptSettings());
-        cancel.on("pointerdown", () => {
+        ok.getData("win95HitZone").on("pointerdown", () => this.acceptSettings());
+        cancel.getData("win95HitZone").on("pointerdown", () => {
             if (this.hasStarted) {
                 this.settingsLayer.setVisible(false);
                 this.gameLayer.setVisible(true);
@@ -162,18 +173,17 @@ export class PokerScene extends Phaser.Scene {
             }
         });
 
-        this.settingsLayer.add([wildHit, this.wildMark, ok, cancel]);
+        this.settingsLayer.add([
+            wildHit,
+            this.wildMark,
+            ...this.getWin95ButtonParts(ok),
+            ...this.getWin95ButtonParts(cancel)
+        ]);
         this.refreshSettingsMarks();
     }
 
     makeDialogButton(x, y, label) {
-        return this.add.text(x, y, label, {
-            fontFamily: "Arial",
-            fontSize: "15px",
-            fontStyle: "bold",
-            color: "#000000",
-            padding: { x: 18, y: 5 }
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        return this.makeWin95Button(x, y, 90, 30, label, 15);
     }
 
     refreshSettingsMarks() {
@@ -208,9 +218,9 @@ export class PokerScene extends Phaser.Scene {
             .setDisplaySize(800, 538);
         const sidePanel = this.add.graphics();
         sidePanel.fillStyle(0xd7d7d7, 0.94)
-            .fillRoundedRect(610, 78, 176, 218, 8)
+            .fillRoundedRect(610, 78, 176, 300, 8)
             .lineStyle(2, 0x777777, 1)
-            .strokeRoundedRect(610, 78, 176, 218, 8);
+            .strokeRoundedRect(610, 78, 176, 300, 8);
 
         this.titleText = this.add.text(8, 58, "", {
             fontFamily: "Arial",
@@ -245,20 +255,23 @@ export class PokerScene extends Phaser.Scene {
             align: "center"
         }).setOrigin(0.5).setDepth(50);
 
-        this.dealButton = this.makeGameButton(698, 116, "DEAL", () => this.dealHand());
+        this.dealButton = this.makeGameButton(698, 116, "DEAL", () => this.dealHand(), 130, 40);
         this.settingsButton = this.makeGameButton(698, 178, "SETTINGS", () => {
             if (!this.roundActive) this.showSettings();
-        });
+        }, 130, 40);
         this.exitButton = this.makeGameButton(698, 240, "EXIT", () => {
             if (!this.roundActive) this.scene.start("Hub");
-        });
+        }, 130, 40);
+        this.rulesButton = this.makeGameButton(698, 302, "RULES", () => {
+            this.rulesPopup?.open();
+        }, 130, 40);
         this.foldButton = this.makeGameButton(225, 570, "FOLD", () => this.playerAction("fold"));
         this.callButton = this.makeGameButton(355, 570, "CALL", () => this.playerAction("call"));
         this.raiseButton = this.makeGameButton(495, 570, "RAISE", () => this.playerAction("raise"));
         [this.foldButton, this.callButton, this.raiseButton].forEach((button) => {
-            button.setVisible(false);
+            this.setWin95ButtonVisible(button, false);
         });
-        this.blindText = this.add.text(698, 275, "", {
+        this.blindText = this.add.text(698, 344, "", {
             fontFamily: "Arial",
             fontSize: "12px",
             fontStyle: "bold",
@@ -273,28 +286,100 @@ export class PokerScene extends Phaser.Scene {
             this.ruleText,
             this.potText,
             this.resultText,
-            this.dealButton,
-            this.settingsButton,
-            this.exitButton,
+            ...this.getWin95ButtonParts(this.dealButton),
+            ...this.getWin95ButtonParts(this.settingsButton),
+            ...this.getWin95ButtonParts(this.exitButton),
+            ...this.getWin95ButtonParts(this.rulesButton),
             this.blindText,
-            this.foldButton,
-            this.callButton,
-            this.raiseButton
+            ...this.getWin95ButtonParts(this.foldButton),
+            ...this.getWin95ButtonParts(this.callButton),
+            ...this.getWin95ButtonParts(this.raiseButton)
         ]);
         this.buildChipStacks();
         this.updateRuleText();
     }
 
-    makeGameButton(x, y, label, callback) {
-        const button = this.add.text(x, y, label, {
-            fontFamily: "Arial",
-            fontSize: "17px",
-            fontStyle: "bold",
-            color: "#000000",
-            backgroundColor: "#c0c0c0",
-            padding: { x: 15, y: 8 }
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        button.on("pointerdown", callback);
+    createRulesPopup() {
+        this.rulesPopup = new RulesPopup(this, {
+            title: "POKER RULES",
+            leftText:
+                "HOW TO PLAY\n" +
+                "Drag chips to the center ante area, then press Deal. All four players ante; the small and big blinds rotate after each hand.\n\n" +
+                "On your turn, Fold gives up the hand, Check stays in when nothing is owed, Call matches the current bet, and Raise increases it. Betting continues until every active player has matched the bet. The best hand at showdown wins the pot.\n\n" +
+                "GAME VARIANTS\n" +
+                "Five-Card Draw: five private cards and two betting rounds.\n" +
+                "Five-Card Stud: one hole card and four visible cards, with four betting rounds.\n" +
+                "Seven-Card Stud: two hole cards, four visible cards, then one final hole card. Use the best five of seven.\n" +
+                "Hold 'Em: two private cards and five community cards. Use the best five of seven.\n" +
+                "Dealer's Choice randomly selects one of the four variants each hand.",
+            rightText:
+                "HAND RANKS\n" +
+                "Highest to lowest:\n\n" +
+                "Five of a Kind (wild)\n" +
+                "Straight Flush (including Royal Flush)\n" +
+                "Four of a Kind\n" +
+                "Full House\n" +
+                "Flush\n" +
+                "Straight\n" +
+                "Three of a Kind\n" +
+                "Two Pair\n" +
+                "One Pair\n" +
+                "High Card\n\n" +
+                "DEUCES WILD\n" +
+                "Each 2 may represent any rank or suit. Five of a Kind becomes the top hand.\n\n" +
+                "PAYOUT\n" +
+                "The winner collects the pot. Equal winning hands split it.",
+            leftFontSize: 11,
+            rightFontSize: 10
+        });
+    }
+
+    makeGameButton(x, y, label, callback, width = 110, height = 38) {
+        const button = this.makeWin95Button(x, y, width, height, label, 17);
+        button.getData("win95HitZone").on("pointerdown", callback);
+        return button;
+    }
+
+    makeWin95Button(x, y, width, height, label, fontSize) {
+        const graphics = this.add.graphics();
+        const left = x - width / 2;
+        const top = y - height / 2;
+        const button = drawWin95Button(
+            this,
+            graphics,
+            left,
+            top,
+            width,
+            height,
+            label,
+            fontSize
+        );
+        const hitZone = this.add.zone(x, y, width, height)
+            .setInteractive({ useHandCursor: true });
+        button.setData("win95Graphics", graphics);
+        button.setData("win95HitZone", hitZone);
+        button.setData("win95Bounds", { x: left, y: top, width, height });
+        button.setData("win95Enabled", true);
+        return button;
+    }
+
+    getWin95ButtonParts(button) {
+        return [
+            button.getData("win95Graphics"),
+            button,
+            button.getData("win95HitZone")
+        ];
+    }
+
+    setWin95ButtonVisible(button, visible) {
+        button.setVisible(visible);
+        button.getData("win95Graphics").setVisible(visible);
+        const hitZone = button.getData("win95HitZone").setVisible(visible);
+        if (visible && button.getData("win95Enabled")) {
+            hitZone.setInteractive({ useHandCursor: true });
+        } else {
+            hitZone.disableInteractive();
+        }
         return button;
     }
 
@@ -375,7 +460,10 @@ export class PokerScene extends Phaser.Scene {
         if (chip.getData("dragConfigured")) return;
         chip.setData("dragConfigured", true);
 
-        chip.on("dragstart", () => this.gameLayer.bringToTop(chip));
+        chip.on("dragstart", () => {
+            this.gameLayer.bringToTop(chip);
+            playSoundEffect(this, "chipPickup");
+        });
         chip.on("drag", (pointer, dragX, dragY) => chip.setPosition(dragX, dragY));
         chip.on("dragend", () => {
             if (this.wageredChips.includes(chip)) {
@@ -406,9 +494,11 @@ export class PokerScene extends Phaser.Scene {
 
     commitWagerChip(chip) {
         if (this.wageredChips.includes(chip)) return;
+        const joinsStack = this.wageredChips.length > 0;
         this.wageredChips.push(chip);
         this.betPlaced += chip.getData("value");
         this.layoutWageredChips();
+        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
 
         const stack = this.bankrollChipStacks[chip.getData("stackIndex")];
         const nextChip = [...stack].reverse().find(
@@ -493,6 +583,7 @@ export class PokerScene extends Phaser.Scene {
         }
 
         if (!this.postAntes(this.betPlaced, stake)) return;
+        playSoundEffect(this, "cardShuffle");
         this.roundActive = true;
         this.clearCards();
         this.navbar.setStake(STAKE);
@@ -687,9 +778,10 @@ export class PokerScene extends Phaser.Scene {
         const toCall = this.amountToCall(0);
         const raiseCost = this.currentBet + this.bigBlind - this.roundBets[0];
         const stake = Number(STAKE ?? 0);
-        this.foldButton.setVisible(true).setText("FOLD");
-        this.callButton.setVisible(true).setText(toCall > 0 ? `CALL $${toCall}` : "CHECK");
-        this.raiseButton.setVisible(true).setText(`RAISE $${raiseCost}`);
+        this.setWin95ButtonVisible(this.foldButton, true).setText("FOLD");
+        this.setWin95ButtonVisible(this.callButton, true)
+            .setText(toCall > 0 ? `CALL $${toCall}` : "CHECK");
+        this.setWin95ButtonVisible(this.raiseButton, true).setText(`RAISE $${raiseCost}`);
         this.setButtonEnabled(this.foldButton, true);
         this.setButtonEnabled(this.callButton, stake >= toCall);
         this.setButtonEnabled(this.raiseButton, stake >= raiseCost && this.raisesThisRound < 3);
@@ -697,7 +789,7 @@ export class PokerScene extends Phaser.Scene {
 
     hideActionButtons() {
         [this.foldButton, this.callButton, this.raiseButton].forEach((button) => {
-            button.setVisible(false);
+            this.setWin95ButtonVisible(button, false);
         });
     }
 
@@ -752,6 +844,7 @@ export class PokerScene extends Phaser.Scene {
     }
 
     addToPot(index, amount) {
+        if (amount > 0) playSoundEffect(this, "chipStack", { volume: 0.8 });
         this.roundBets[index] += amount;
         this.handContributions[index] += amount;
         this.currentPot += amount;
@@ -846,13 +939,15 @@ export class PokerScene extends Phaser.Scene {
     }
 
     revealCommunityCards(count) {
-        this.cardSprites
+        const cardsToReveal = this.cardSprites
             .filter((sprite) => sprite.getData("group") === "community")
             .slice(0, count)
-            .forEach((sprite) => {
-                sprite.setFrame(this.getCardFrame(sprite.getData("card")));
-                sprite.setData("faceUp", true);
-            });
+            .filter((sprite) => !sprite.getData("faceUp"));
+        cardsToReveal.forEach((sprite) => {
+            sprite.setFrame(this.getCardFrame(sprite.getData("card")));
+            sprite.setData("faceUp", true);
+        });
+        if (cardsToReveal.length > 0) playSoundEffect(this, "cardFlip");
     }
 
     updateSeatHighlights() {
@@ -909,20 +1004,25 @@ export class PokerScene extends Phaser.Scene {
                 alpha: 1,
                 duration: 260,
                 delay: initialDelay + index * 90,
-                ease: "Cubic.Out"
+                ease: "Cubic.Out",
+                onComplete: () => playSoundEffect(this, "cardPlace", { volume: 0.75 })
             });
         });
         return initialDelay + cards.length * 90;
     }
 
     showdown() {
+        let revealedCard = false;
         this.cardSprites.forEach((sprite) => {
             const foldedOpponent = sprite.getData("group") === "opponent"
                 && this.folded[sprite.getData("seatIndex")];
             if (!sprite.getData("faceUp") && !foldedOpponent) {
                 sprite.setFrame(this.getCardFrame(sprite.getData("card")));
+                sprite.setData("faceUp", true);
+                revealedCard = true;
             }
         });
+        if (revealedCard) playSoundEffect(this, "cardFlip");
 
         const playerCards = this.activeGame === "Hold 'Em"
             ? [...this.playerHand, ...this.communityCards]
@@ -991,9 +1091,25 @@ export class PokerScene extends Phaser.Scene {
     }
 
     setButtonEnabled(button, enabled) {
+        button.setData("win95Enabled", enabled);
         button.setColor(enabled ? "#000000" : "#777777");
-        if (enabled) button.setInteractive({ useHandCursor: true });
-        else button.disableInteractive();
+        const graphics = button.getData("win95Graphics");
+        const bounds = button.getData("win95Bounds");
+        graphics.clear();
+        drawBevelButton(
+            graphics,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            !enabled
+        );
+        const hitZone = button.getData("win95HitZone");
+        if (enabled && button.visible) {
+            hitZone.setInteractive({ useHandCursor: true });
+        } else {
+            hitZone.disableInteractive();
+        }
     }
 
     clearCards() {

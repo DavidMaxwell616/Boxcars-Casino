@@ -1,4 +1,12 @@
 import { Navbar } from "../ui/Navbar.js";
+import { RulesPopup } from "../ui/RulesPopup.js";
+import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
+import {
+    CARD_SOUND_KEYS,
+    CHIP_SOUND_KEYS,
+    playSoundEffect,
+    preloadSoundEffects
+} from "../SoundEffects.js";
 
 export class BaccaratScene extends Phaser.Scene {
     constructor() {
@@ -16,6 +24,7 @@ export class BaccaratScene extends Phaser.Scene {
             frameHeight: 27
         });
         this.load.audio("baccaratDeal", "assets/sounds/BACCARAT.WAV");
+        preloadSoundEffects(this, [...CARD_SOUND_KEYS, ...CHIP_SOUND_KEYS]);
         Navbar.preload(this);
     }
 
@@ -67,8 +76,11 @@ export class BaccaratScene extends Phaser.Scene {
 
         this.exitButton = this.makeButton(48, 576, "Exit", () => this.exitScene());
         this.dealButton = this.makeButton(291, 576, "Deal", () => this.dealRound());
+        this.rulesButton = this.makeButton(520, 576, "Rules", () => this.rulesPopup.open());
 
         this.navbar = new Navbar(this);
+        this.createRulesPopup();
+        this.input.keyboard.on("keydown-ESC", () => this.rulesPopup?.close());
         this.createWagerChip();
         this.updateDisplay();
     }
@@ -85,15 +97,58 @@ export class BaccaratScene extends Phaser.Scene {
     }
 
     makeButton(x, y, label, callback) {
-        const button = this.add.text(x, y, label, {
-            fontFamily: "Arial",
-            fontSize: "18px",
-            fontStyle: "bold",
-            color: "#000000",
-            padding: { x: 12, y: 3 }
-        }).setOrigin(0.5).setDepth(30).setInteractive({ useHandCursor: true });
-        button.on("pointerdown", callback);
+        const width = label === "Rules" ? 82 : 70;
+        const height = 32;
+        const left = x - width / 2;
+        const top = y - height / 2;
+        const graphics = this.add.graphics().setDepth(30);
+        const button = drawWin95Button(
+            this,
+            graphics,
+            left,
+            top,
+            width,
+            height,
+            label,
+            18,
+            { depth: 30 }
+        );
+        const hitZone = this.add.zone(x, y, width, height)
+            .setDepth(30)
+            .setInteractive({ useHandCursor: true });
+        hitZone.on("pointerdown", callback);
+        button.setData("win95Graphics", graphics);
+        button.setData("win95HitZone", hitZone);
+        button.setData("win95Bounds", { x: left, y: top, width, height });
         return button;
+    }
+
+    createRulesPopup() {
+        this.rulesPopup = new RulesPopup(this, {
+            title: "BACCARAT RULES",
+            leftText:
+                "HOW TO PLAY\n" +
+                "Drag the wager chip to PLAYER or BANK and press Deal. Both hands are dealt automatically. Bet on which hand will finish closest to 9.\n\n" +
+                "CARD VALUES\n" +
+                "Aces count as 1. Cards 2 through 9 use face value. 10, J, Q, and K count as 0. Only the last digit of a total is used, so 15 becomes 5.\n\n" +
+                "NATURALS\n" +
+                "An initial total of 8 or 9 is a natural and normally ends the draw.\n\n" +
+                "DRAWING\n" +
+                "The Player draws on 0-5 and stands on 6-7. The Bank drawing decision is automatic and depends on its total and the Player's third card.",
+            rightText:
+                "PAYOUTS\n\n" +
+                "PLAYER BET\n" +
+                "Player wins: 1:1\n\n" +
+                "BANK BET\n" +
+                "Bank wins: 1:1\n" +
+                "5% commission is recorded on winning Bank bets.\n\n" +
+                "TIE\n" +
+                "Player and Bank wagers push and are returned.\n\n" +
+                "Current wager: $20\n\n" +
+                "Commission is collected when the shoe is renewed or when leaving the table.",
+            leftFontSize: 13,
+            rightFontSize: 13
+        });
     }
 
     createWagerChip() {
@@ -122,6 +177,7 @@ export class BaccaratScene extends Phaser.Scene {
         if (chip.getData("dragConfigured")) return;
         chip.setData("dragConfigured", true);
 
+        chip.on("dragstart", () => playSoundEffect(this, "chipPickup"));
         chip.on("drag", (pointer, dragX, dragY) => chip.setPosition(dragX, dragY));
         chip.on("dragend", () => {
             if (Phaser.Geom.Rectangle.Contains(this.bankZone, chip.x, chip.y)) {
@@ -131,6 +187,7 @@ export class BaccaratScene extends Phaser.Scene {
             }
             const position = this.getBetPosition(this.betSide);
             chip.setPosition(position.x, position.y).setData("homeSide", this.betSide);
+            playSoundEffect(this, "chipTable");
             this.updateDisplay();
         });
     }
@@ -161,6 +218,7 @@ export class BaccaratScene extends Phaser.Scene {
         this.navbar.setStake(STAKE);
 
         if (this.cache.audio.exists("baccaratDeal")) this.sound.play("baccaratDeal");
+        playSoundEffect(this, "cardShuffle", { volume: 0.65 });
 
         const playerHand = [];
         const bankHand = [];
@@ -213,7 +271,8 @@ export class BaccaratScene extends Phaser.Scene {
                 alpha: 1,
                 duration: 280,
                 delay: index * 130,
-                ease: "Cubic.Out"
+                ease: "Cubic.Out",
+                onComplete: () => playSoundEffect(this, "cardPlace", { volume: 0.8 })
             });
         });
         return dealSequence.length * 130;
@@ -250,6 +309,7 @@ export class BaccaratScene extends Phaser.Scene {
 
         this.roundActive = false;
         this.navbar.setStake(STAKE);
+        playSoundEffect(this, "chipTable");
         this.createWagerChip();
         this.updateDisplay();
     }
@@ -333,8 +393,20 @@ export class BaccaratScene extends Phaser.Scene {
 
     setButtonEnabled(button, enabled) {
         button.setColor(enabled ? "#000000" : "#777777");
-        if (enabled) button.setInteractive({ useHandCursor: true });
-        else button.disableInteractive();
+        const graphics = button.getData("win95Graphics");
+        const bounds = button.getData("win95Bounds");
+        graphics.clear();
+        drawBevelButton(
+            graphics,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            !enabled
+        );
+        const hitZone = button.getData("win95HitZone");
+        if (enabled) hitZone.setInteractive({ useHandCursor: true });
+        else hitZone.disableInteractive();
     }
 
     exitScene() {

@@ -1,5 +1,13 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
 import { Navbar } from "../ui/Navbar.js";
+import { RulesPopup } from "../ui/RulesPopup.js";
+import { drawWin95Button } from "../ui/Win95.js";
+import {
+    CARD_SOUND_KEYS,
+    CHIP_SOUND_KEYS,
+    playSoundEffect,
+    preloadSoundEffects
+} from "../SoundEffects.js";
 
 export class BlackjackScene extends Phaser.Scene {
     constructor() {
@@ -19,12 +27,13 @@ export class BlackjackScene extends Phaser.Scene {
             frameWidth: 30,
             frameHeight: 27
         });
-        this.load.audio("blackjackChipStack", "assets/sounds/CHIPSTACK.WAV");
+        preloadSoundEffects(this, [...CARD_SOUND_KEYS, ...CHIP_SOUND_KEYS]);
     }
 
     create() {
         this.balance = Number(STAKE ?? 0);
         this.betPlaced = 0;
+        this.roundWagerTotal = 0;
         this.roundActive = false;
         this.playerTurn = false;
         this.hideDealerHole = true;
@@ -76,42 +85,31 @@ export class BlackjackScene extends Phaser.Scene {
         this.hitBtnRect = new Phaser.Geom.Rectangle(125, 570, 59, 18);
         this.standBtnRect = new Phaser.Geom.Rectangle(243, 570, 59, 18);
         this.splitBtnRect = new Phaser.Geom.Rectangle(340, 570, 70, 18);
+        this.doubleBtnRect = new Phaser.Geom.Rectangle(427, 570, 80, 18);
         this.dealBtnRect = new Phaser.Geom.Rectangle(537, 570, 59, 18);
+        this.rulesBtnRect = new Phaser.Geom.Rectangle(625, 566, 74, 26);
 
-        this.exitBtnText = this.add.text(this.exitBtnRect.centerX, this.exitBtnRect.centerY, "Exit", {
-            fontFamily: "Arial",
-            fontSize: "18px",
-            color: "#000000",
-            fontStyle: "bold"
-        }).setOrigin(0.5).setDepth(10);
-
-        this.hitBtnText = this.add.text(this.hitBtnRect.centerX, this.hitBtnRect.centerY, "Hit", {
-            fontFamily: "Arial",
-            fontSize: "18px",
-            color: "#7f7f7f",
-            fontStyle: "bold"
-        }).setOrigin(0.5).setDepth(10);
-
-        this.standBtnText = this.add.text(this.standBtnRect.centerX, this.standBtnRect.centerY, "Stand", {
-            fontFamily: "Arial",
-            fontSize: "18px",
-            color: "#7f7f7f",
-            fontStyle: "bold"
-        }).setOrigin(0.5).setDepth(10);
-
-        this.splitBtnText = this.add.text(this.splitBtnRect.centerX, this.splitBtnRect.centerY, "Split", {
-            fontFamily: "Arial",
-            fontSize: "18px",
-            color: "#7f7f7f",
-            fontStyle: "bold"
-        }).setOrigin(0.5).setDepth(10);
-
-        this.dealBtnText = this.add.text(this.dealBtnRect.centerX, this.dealBtnRect.centerY, "Deal", {
-            fontFamily: "Arial",
-            fontSize: "18px",
-            color: "#000000",
-            fontStyle: "bold"
-        }).setOrigin(0.5).setDepth(10);
+        this.buttonGraphics = this.add.graphics().setDepth(9);
+        const makeTableButton = (rect, label, fontSize = 18, textColor = "#000000") => (
+            drawWin95Button(
+                this,
+                this.buttonGraphics,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                label,
+                fontSize,
+                { depth: 10, textColor }
+            )
+        );
+        this.exitBtnText = makeTableButton(this.exitBtnRect, "Exit");
+        this.hitBtnText = makeTableButton(this.hitBtnRect, "Hit", 18, "#7f7f7f");
+        this.standBtnText = makeTableButton(this.standBtnRect, "Stand", 18, "#7f7f7f");
+        this.splitBtnText = makeTableButton(this.splitBtnRect, "Split", 18, "#7f7f7f");
+        this.doubleBtnText = makeTableButton(this.doubleBtnRect, "Double", 18, "#7f7f7f");
+        this.dealBtnText = makeTableButton(this.dealBtnRect, "Deal");
+        this.rulesBtnText = makeTableButton(this.rulesBtnRect, "Rules", 17);
 
         this.input.on("pointerdown", (pointer) => {
             const x = this.blackjackDisplay
@@ -120,6 +118,13 @@ export class BlackjackScene extends Phaser.Scene {
             const y = this.blackjackDisplay
                 ? (pointer.y - this.blackjackDisplay.y) / this.blackjackDisplay.scaleY
                 : pointer.y;
+
+            if (this.rulesPopup?.isOpen) return;
+
+            if (Phaser.Geom.Rectangle.Contains(this.rulesBtnRect, x, y)) {
+                this.rulesPopup.open();
+                return;
+            }
 
             if (Phaser.Geom.Rectangle.Contains(this.exitBtnRect, x, y)) {
                 if (!this.roundActive) this.scene.start("Hub");
@@ -143,6 +148,11 @@ export class BlackjackScene extends Phaser.Scene {
 
             if (Phaser.Geom.Rectangle.Contains(this.splitBtnRect, x, y)) {
                 if (this.canSplitCurrentHand()) this.onSplit();
+                return;
+            }
+
+            if (Phaser.Geom.Rectangle.Contains(this.doubleBtnRect, x, y)) {
+                if (this.canDoubleCurrentHand()) this.onDoubleDown();
                 return;
             }
         });
@@ -215,6 +225,36 @@ export class BlackjackScene extends Phaser.Scene {
 
         this.updateTexts();
         this.navbar = new Navbar(this);
+        this.createRulesPopup();
+        this.input.keyboard.on("keydown-ESC", () => this.rulesPopup?.close());
+    }
+
+    createRulesPopup() {
+        this.rulesPopup = new RulesPopup(this, {
+            title: "BLACKJACK RULES",
+            leftText:
+                "HOW TO PLAY\n" +
+                "Drag chips into the betting square and press Deal. Try to finish closer to 21 than the dealer without going over.\n\n" +
+                "CARD VALUES\n" +
+                "Number cards use their face value. J, Q, and K count as 10. An ace counts as 11 unless counting it as 1 prevents a bust.\n\n" +
+                "ACTIONS\n" +
+                "Hit takes another card. Stand ends your turn. Double doubles that hand's wager, deals exactly one card, and then stands.\n\n" +
+                "Split is available for equal-value starting cards when enough stake remains. Each split hand receives its own matching wager and is played separately. Up to four hands are allowed. Split aces receive one additional card each.\n\n" +
+                "DEALER\n" +
+                "The dealer reveals the hole card after play and must hit below 17 and stand on 17 or higher.",
+            rightText:
+                "PAYOUTS\n\n" +
+                "Regular win: 1:1\n\n" +
+                "Blackjack: 3:2\n" +
+                "A blackjack is an ace plus a 10-value card in the initial two cards.\n\n" +
+                "Push: wager returned\n\n" +
+                "Insurance: 2:1\n" +
+                "Offered when the dealer shows an ace, up to half the original wager.\n\n" +
+                "Doubled and split hands pay their full individual wagers at 1:1. A split 21 is not a blackjack.\n\n" +
+                "A hand over 21 busts and loses immediately.",
+            leftFontSize: 12,
+            rightFontSize: 12
+        });
     }
 
 
@@ -265,21 +305,37 @@ export class BlackjackScene extends Phaser.Scene {
     }
 
     makeActionButton(x, y, label, callback) {
-        const button = this.add.text(x, y, label, {
-            fontFamily: "Arial",
-            fontSize: "17px",
-            fontStyle: "bold",
-            color: "#000000",
-            backgroundColor: "#c0c0c0",
-            padding: { x: 12, y: 6 }
-        }).setOrigin(0.5).setDepth(110).setInteractive({ useHandCursor: true });
-        button.on("pointerdown", callback);
+        const width = 104;
+        const height = 34;
+        const graphics = this.add.graphics().setDepth(109);
+        const button = drawWin95Button(
+            this,
+            graphics,
+            x - width / 2,
+            y - height / 2,
+            width,
+            height,
+            label,
+            14,
+            { depth: 110 }
+        );
+        const hitZone = this.add.zone(x, y, width, height)
+            .setDepth(111)
+            .setInteractive({ useHandCursor: true });
+        button.setData("buttonGraphics", graphics);
+        button.setData("buttonHitZone", hitZone);
+        hitZone.on("pointerdown", callback);
         return button;
     }
 
     setInsuranceButtonsVisible(visible) {
-        this.insuranceYesButton?.setVisible(visible);
-        this.insuranceNoButton?.setVisible(visible);
+        [this.insuranceYesButton, this.insuranceNoButton].forEach((button) => {
+            button?.setVisible(visible);
+            button?.getData("buttonGraphics")?.setVisible(visible);
+            button?.getData("buttonHitZone")?.setVisible(visible);
+            if (visible) button?.getData("buttonHitZone")?.setInteractive({ useHandCursor: true });
+            else button?.getData("buttonHitZone")?.disableInteractive();
+        });
     }
 
     buildBankrollStacks() {
@@ -383,7 +439,9 @@ export class BlackjackScene extends Phaser.Scene {
                 ) {
                     this.returnWagerChipToStack(chip);
                 } else if (!this.roundActive && droppedInBetZone) {
-                    this.stackWagerChipIfOverlapping(chip);
+                    if (!this.stackWagerChipIfOverlapping(chip)) {
+                        playSoundEffect(this, "chipTable");
+                    }
                     chip.setData({ betX: chip.x, betY: chip.y });
                 } else {
                     chip.setPosition(chip.getData("betX"), chip.getData("betY"));
@@ -400,7 +458,9 @@ export class BlackjackScene extends Phaser.Scene {
             }
 
             this.betPlaced += chip.getData("value");
-            this.stackWagerChipIfOverlapping(chip);
+            if (!this.stackWagerChipIfOverlapping(chip)) {
+                playSoundEffect(this, "chipTable");
+            }
             this.wageredChips.push(chip);
             chip.setData({ betX: chip.x, betY: chip.y });
 
@@ -425,10 +485,15 @@ export class BlackjackScene extends Phaser.Scene {
                     candidate.y - candidate.displayHeight / 2
                 )
             }))
-            .filter(({ chip: candidate }) => Phaser.Geom.Intersects.RectangleToRectangle(
-                chip.getBounds(),
-                candidate.getBounds()
-            ))
+            .filter(({ chip: candidate }) => {
+                const horizontalDistance = Math.abs(chip.x - candidate.x);
+                const verticalDistance = Math.abs(
+                    (chip.y - chip.displayHeight / 2)
+                    - (candidate.y - candidate.displayHeight / 2)
+                );
+                return horizontalDistance <= chip.displayWidth
+                    && verticalDistance <= chip.displayHeight + 8;
+            })
             .sort((a, b) => a.distance - b.distance)[0]?.chip;
 
         if (!overlappingChip) return false;
@@ -455,9 +520,7 @@ export class BlackjackScene extends Phaser.Scene {
             overlappingChip.x,
             Math.min(...stack.map((stackChip) => stackChip.y)) - 7
         );
-        if (this.cache.audio.exists("blackjackChipStack")) {
-            this.sound.play("blackjackChipStack");
-        }
+        playSoundEffect(this, "chipStack");
         return true;
     }
 
@@ -468,6 +531,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.wageredChips.splice(wagerIndex, 1);
         this.betPlaced = Math.max(0, this.betPlaced - chip.getData("value"));
         chip.setPosition(chip.getData("originalX"), chip.getData("originalY"));
+        playSoundEffect(this, "chipStack");
 
         const stack = this.bankrollChipStacks[chip.getData("stackIndex")];
         stack.forEach((stackChip) => {
@@ -563,12 +627,11 @@ export class BlackjackScene extends Phaser.Scene {
                     duration: newlyPlaced ? 480 : 220,
                     ease: newlyPlaced ? "Cubic.Out" : "Sine.Out",
                     onComplete: () => {
-                        if (
-                            newlyPlaced
-                            && chipIndex > 0
-                            && this.cache.audio.exists("blackjackChipStack")
-                        ) {
-                            this.sound.play("blackjackChipStack");
+                        if (newlyPlaced) {
+                            playSoundEffect(
+                                this,
+                                chipIndex > 0 ? "chipStack" : "chipTable"
+                            );
                         }
                     }
                 });
@@ -604,6 +667,8 @@ export class BlackjackScene extends Phaser.Scene {
             this.messageText.setText("Not enough money");
             return;
         }
+
+        playSoundEffect(this, "cardShuffle");
 
         this.roundActive = true;
         this.playerTurn = false;
@@ -750,7 +815,10 @@ export class BlackjackScene extends Phaser.Scene {
             duration: 280,
             delay,
             ease: "Cubic.Out",
-            onComplete
+            onComplete: () => {
+                playSoundEffect(this, "cardPlace");
+                onComplete?.();
+            }
         });
     }
 
@@ -759,6 +827,7 @@ export class BlackjackScene extends Phaser.Scene {
         const dealerScore = this.evaluateHand(this.dealerHand);
 
         this.hideDealerHole = false;
+        playSoundEffect(this, "cardFlip");
         this.renderHands();
 
         if (playerScore.isBlackjack && dealerScore.isBlackjack) {
@@ -785,6 +854,100 @@ export class BlackjackScene extends Phaser.Scene {
         return Number(STAKE ?? 0) >= nextTotalWager;
     }
 
+    canDoubleCurrentHand() {
+        if (!this.roundActive || !this.playerTurn || this.insurancePromptActive) return false;
+        const hand = this.playerHands[this.activeHandIndex];
+        if (!hand || hand.length !== 2 || this.handStates[this.activeHandIndex] !== "active") {
+            return false;
+        }
+        const currentBet = this.handBets[this.activeHandIndex] ?? this.betPlaced;
+        const totalWager = this.handBets.reduce((total, bet) => total + bet, 0);
+        return Number(STAKE ?? 0) >= totalWager + currentBet;
+    }
+
+    addSupplementalWagerChips(amount) {
+        const sourceChips = this.wageredChips.filter(
+            (chip) => chip.active && !chip.getData("supplementalWager")
+        );
+        let remaining = amount;
+        const addedChips = [];
+
+        sourceChips.forEach((source, index) => {
+            const value = source.getData("value");
+            if (remaining < value) return;
+            remaining -= value;
+            const chip = this.add.sprite(
+                source.x + 9 + (index % 3) * 3,
+                source.y - 7 - Math.floor(index / 3) * 7,
+                "chips",
+                source.frame.name
+            ).setOrigin(0.5, 1).setDepth(12);
+            chip.setData({
+                value,
+                stackIndex: source.getData("stackIndex"),
+                chipIndex: source.getData("chipIndex"),
+                originalX: source.getData("originalX"),
+                originalY: source.getData("originalY"),
+                betX: chip.x,
+                betY: chip.y,
+                supplementalWager: true
+            });
+            this.chipSprites.push(chip);
+            this.wageredChips.push(chip);
+            addedChips.push(chip);
+        });
+
+        if (remaining !== 0) {
+            addedChips.forEach((chip) => {
+                this.wageredChips.splice(this.wageredChips.indexOf(chip), 1);
+                this.chipSprites.splice(this.chipSprites.indexOf(chip), 1);
+                chip.destroy();
+            });
+            return false;
+        }
+        if (addedChips.length > 0) playSoundEffect(this, "chipStack");
+        return true;
+    }
+
+    onDoubleDown() {
+        if (!this.canDoubleCurrentHand()) return;
+        this.playerTurn = false;
+        const index = this.activeHandIndex;
+        const additionalBet = this.handBets[index] ?? this.betPlaced;
+        if (!this.addSupplementalWagerChips(additionalBet)) {
+            this.playerTurn = true;
+            return;
+        }
+
+        this.handBets[index] += additionalBet;
+        const hand = this.playerHands[index];
+        this.dealCard(hand);
+        this.playerHand = hand;
+        playSoundEffect(this, "cardPlace");
+        this.renderHands();
+        this.updateTexts();
+
+        if (this.playerHands.length > 1) {
+            this.handStates[index] = this.evaluateHand(hand).isBust ? "bust" : "stood";
+            this.updateTexts();
+            this.time.delayedCall(350, () => this.advanceToNextHand());
+            return;
+        }
+
+        if (this.evaluateHand(hand).isBust) {
+            this.hideDealerHole = false;
+            playSoundEffect(this, "cardFlip");
+            this.renderHands();
+            this.endRound("Bust", "loss");
+        } else {
+            this.hideDealerHole = false;
+            playSoundEffect(this, "cardFlip");
+            this.renderHands();
+            this.updateTexts();
+            this.dealerPlayStep();
+        }
+    }
+
     onSplit() {
         if (!this.canSplitCurrentHand()) return;
         this.playerTurn = false;
@@ -793,8 +956,13 @@ export class BlackjackScene extends Phaser.Scene {
         const splitAces = hand[0].rank === "A" && hand[1].rank === "A";
         const firstHand = [hand[0]];
         const secondHand = [hand[1]];
+        if (!this.addSupplementalWagerChips(this.betPlaced)) {
+            this.playerTurn = true;
+            return;
+        }
         this.dealCard(firstHand);
         this.dealCard(secondHand);
+        playSoundEffect(this, "cardPlace");
 
         this.playerHands.splice(index, 1, firstHand, secondHand);
         this.handBets.splice(index, 1, this.betPlaced, this.betPlaced);
@@ -850,6 +1018,7 @@ export class BlackjackScene extends Phaser.Scene {
     finishPlayerHands() {
         this.playerTurn = false;
         this.hideDealerHole = false;
+        playSoundEffect(this, "cardFlip");
         this.renderHands();
         this.updateTexts();
         if (this.handStates.every((state) => state === "bust")) {
@@ -886,6 +1055,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.tweenCardFromDeck(sprite, 0, () => {
             if (this.evaluateHand(this.playerHand).isBust) {
                 this.hideDealerHole = false;
+                playSoundEffect(this, "cardFlip");
                 this.renderHands();
                 this.endRound("Bust", "loss");
             } else {
@@ -905,6 +1075,7 @@ export class BlackjackScene extends Phaser.Scene {
         }
         this.playerTurn = false;
         this.hideDealerHole = false;
+        playSoundEffect(this, "cardFlip");
         this.renderHands();
         this.updateTexts();
         this.dealerPlayStep();
@@ -916,6 +1087,7 @@ export class BlackjackScene extends Phaser.Scene {
         if (dealerScore.total < 17) {
             this.time.delayedCall(450, () => {
                 this.dealCard(this.dealerHand);
+                playSoundEffect(this, "cardPlace");
                 this.renderHands();
                 this.updateTexts();
                 this.dealerPlayStep();
@@ -933,17 +1105,18 @@ export class BlackjackScene extends Phaser.Scene {
         }
         const playerScore = this.evaluateHand(this.playerHand);
         const dealerScore = this.evaluateHand(this.dealerHand);
+        const wager = this.handBets[0] ?? this.betPlaced;
 
         if (dealerScore.isBust) {
-            this.balance += this.betPlaced * 2;
-            this.endRound("Dealer Busts", "win", this.betPlaced);
+            this.balance += wager * 2;
+            this.endRound("Dealer Busts", "win", wager);
         } else if (playerScore.total > dealerScore.total) {
-            this.balance += this.betPlaced * 2;
-            this.endRound("You Win", "win", this.betPlaced);
+            this.balance += wager * 2;
+            this.endRound("You Win", "win", wager);
         } else if (playerScore.total < dealerScore.total) {
             this.endRound("Dealer Wins", "loss");
         } else {
-            this.balance += this.betPlaced;
+            this.balance += wager;
             this.endRound("Push", "push");
         }
 
@@ -952,6 +1125,9 @@ export class BlackjackScene extends Phaser.Scene {
 
     endRound(msg, outcome, winnings = 0) {
         this.playerTurn = false;
+        this.roundWagerTotal = this.handBets.length > 0
+            ? this.handBets.reduce((total, bet) => total + bet, 0)
+            : this.betPlaced;
 
         if (outcome === "win") {
             STAKE = Number(STAKE ?? 0) + winnings;
@@ -1025,7 +1201,7 @@ export class BlackjackScene extends Phaser.Scene {
     }
 
     settleWager(outcome, winnings) {
-        const wager = this.betPlaced;
+        const wager = this.roundWagerTotal || this.betPlaced;
         const transfers = [];
 
         if (outcome === "loss") {
@@ -1156,10 +1332,13 @@ export class BlackjackScene extends Phaser.Scene {
 
     completeRoundSettlement(outcome) {
         const hadInsurance = this.insuranceBet > 0;
+        const hadSupplementalWager = this.wageredChips.some(
+            (chip) => chip.getData("supplementalWager")
+        );
         this.insuranceStatusText.setText("");
         this.insuranceBet = 0;
         this.clearDealerWagerChips();
-        if (outcome === "win" && !hadInsurance) {
+        if (outcome === "win" && !hadInsurance && !hadSupplementalWager) {
             this.bankrollChipStacks.forEach((stack) => {
                 const bankrollChips = stack.filter(
                     (chip) => chip.active && !this.wageredChips.includes(chip)
@@ -1193,6 +1372,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.bankrollChipStacks = [];
         this.wageredChips = [];
         this.betPlaced = 0;
+        this.roundWagerTotal = 0;
         this.balance = Number(STAKE ?? 0);
         this.roundActive = false;
         this.playerTurn = false;
@@ -1260,6 +1440,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.bankrollChipStacks = [];
         this.wageredChips = [];
         this.betPlaced = 0;
+        this.roundWagerTotal = 0;
         this.roundActive = false;
         this.playerTurn = false;
         this.playerHands = [];
@@ -1320,7 +1501,7 @@ export class BlackjackScene extends Phaser.Scene {
         const totalPlayerWager = this.handBets.length > 0
             ? this.handBets.reduce((total, bet) => total + bet, 0)
             : this.betPlaced;
-        this.dealerWagerText.setText("$" + this.betPlaced.toLocaleString("en-US"));
+        this.dealerWagerText.setText("$" + totalPlayerWager.toLocaleString("en-US"));
         this.playerWagerText.setText("$" + totalPlayerWager.toLocaleString("en-US"));
 
         this.betInfoText.setText(this.roundActive ? "" : ("Bet: $" + this.betPlaced));
@@ -1341,6 +1522,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.hitBtnText.setColor(this.roundActive && this.playerTurn ? "#000000" : "#7f7f7f");
         this.standBtnText.setColor(this.roundActive && this.playerTurn ? "#000000" : "#7f7f7f");
         this.splitBtnText.setColor(this.canSplitCurrentHand() ? "#000000" : "#7f7f7f");
+        this.doubleBtnText.setColor(this.canDoubleCurrentHand() ? "#000000" : "#7f7f7f");
         this.dealBtnText.setColor(
             !this.roundActive && this.betPlaced > 0 ? "#000000" : "#7f7f7f"
         );
@@ -1479,37 +1661,6 @@ export class BlackjackScene extends Phaser.Scene {
         g.lineTo(x + w - 1, y + h - 1);
         g.lineTo(x, y + h - 1);
         g.strokePath();
-    }
-
-    drawBevelButton(g, x, y, w, h, disabled) {
-        const fill = disabled ? 0xb8b8b8 : this.colors.grayBtn;
-
-        g.fillStyle(fill, 1);
-        g.fillRect(x, y, w, h);
-
-        g.lineStyle(1, this.colors.grayBtnHi, 1);
-        g.beginPath();
-        g.moveTo(x + w - 1, y);
-        g.lineTo(x, y);
-        g.lineTo(x, y + h - 1);
-        g.strokePath();
-
-        g.lineStyle(1, this.colors.grayBtnShadow, 1);
-        g.beginPath();
-        g.moveTo(x + w - 1, y);
-        g.lineTo(x + w - 1, y + h - 1);
-        g.lineTo(x, y + h - 1);
-        g.strokePath();
-    }
-
-    drawWin95Button(g, x, y, w, h, label, fontSize) {
-        this.drawBevelButton(g, x, y, w, h, false);
-        this.add.text(x + w / 2, y + h / 2 + 1, label, {
-            fontFamily: "Arial",
-            fontSize: fontSize + "px",
-            color: "#000000",
-            fontStyle: "bold"
-        }).setOrigin(0.5);
     }
 
     drawMoneyBox(g, x, y, w, h) {
