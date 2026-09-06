@@ -12,9 +12,9 @@ export default class HubScene extends Phaser.Scene {
 
     create() {
         if (TEST) {
-            BANK_BALANCE = 5000;
+            BANK_BALANCE = 50000;
             STAKE = 1000;
-            GAMBLER_NAME = "max";
+            GAMBLER_NAME = "Longshot Louie";
         }
         else {
             BANK_BALANCE = 0;
