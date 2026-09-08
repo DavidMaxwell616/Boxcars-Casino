@@ -1,8 +1,7 @@
 import { Navbar } from "../ui/Navbar.js";
-import { CARD_DEAL_DELAY_MS } from "../SoundEffects.js";
 import { RulesPopup } from "../ui/RulesPopup.js";
 import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
-
+import { CARD_DEAL_DELAY_MS } from "../config.js";
 export class BaccaratScene extends Phaser.Scene {
     constructor() {
         super("BACCARAT");

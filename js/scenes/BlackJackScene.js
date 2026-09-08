@@ -1,9 +1,8 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
-import { CARD_DEAL_DELAY_MS } from "../SoundEffects.js";
 import { Navbar } from "../ui/Navbar.js";
 import { RulesPopup } from "../ui/RulesPopup.js";
 import { drawWin95Button } from "../ui/Win95.js";
-
+import { CARD_DEAL_DELAY_MS } from "../config.js";
 export class BlackjackScene extends Phaser.Scene {
     constructor() {
         super("BLACKJACK");

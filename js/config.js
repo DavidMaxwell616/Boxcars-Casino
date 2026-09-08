@@ -48,7 +48,7 @@ export const menuButtons = [
     },
 
 ];
-
+export const CARD_DEAL_DELAY_MS = 800;
 export const SOUNDS = [
     '6WAYAPPE',
     '6WAYGAME',
