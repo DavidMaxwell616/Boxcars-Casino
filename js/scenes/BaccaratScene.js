@@ -1,12 +1,7 @@
 import { Navbar } from "../ui/Navbar.js";
+import { CARD_DEAL_DELAY_MS } from "../SoundEffects.js";
 import { RulesPopup } from "../ui/RulesPopup.js";
 import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
-import {
-    CARD_SOUND_KEYS,
-    CHIP_SOUND_KEYS,
-    playSoundEffect,
-    preloadSoundEffects
-} from "../SoundEffects.js";
 
 export class BaccaratScene extends Phaser.Scene {
     constructor() {
@@ -24,7 +19,6 @@ export class BaccaratScene extends Phaser.Scene {
             frameHeight: 27
         });
         this.load.audio("baccaratDeal", "assets/sounds/BACCARAT.WAV");
-        preloadSoundEffects(this, [...CARD_SOUND_KEYS, ...CHIP_SOUND_KEYS]);
         Navbar.preload(this);
     }
 
@@ -177,7 +171,6 @@ export class BaccaratScene extends Phaser.Scene {
         if (chip.getData("dragConfigured")) return;
         chip.setData("dragConfigured", true);
 
-        chip.on("dragstart", () => playSoundEffect(this, "chipPickup"));
         chip.on("drag", (pointer, dragX, dragY) => chip.setPosition(dragX, dragY));
         chip.on("dragend", () => {
             if (Phaser.Geom.Rectangle.Contains(this.bankZone, chip.x, chip.y)) {
@@ -187,7 +180,7 @@ export class BaccaratScene extends Phaser.Scene {
             }
             const position = this.getBetPosition(this.betSide);
             chip.setPosition(position.x, position.y).setData("homeSide", this.betSide);
-            playSoundEffect(this, "chipTable");
+            this.sound.play("CHIPTABLE");
             this.updateDisplay();
         });
     }
@@ -218,7 +211,7 @@ export class BaccaratScene extends Phaser.Scene {
         this.navbar.setStake(STAKE);
 
         if (this.cache.audio.exists("baccaratDeal")) this.sound.play("baccaratDeal");
-        playSoundEffect(this, "cardShuffle", { volume: 0.65 });
+        this.sound.play("CARDSHUFFLE", { volume: 0.65 });
 
         const playerHand = [];
         const bankHand = [];
@@ -270,12 +263,12 @@ export class BaccaratScene extends Phaser.Scene {
                 y: targetY,
                 alpha: 1,
                 duration: 280,
-                delay: index * 130,
+                delay: CARD_DEAL_DELAY_MS + index * 130,
                 ease: "Cubic.Out",
-                onComplete: () => playSoundEffect(this, "cardPlace", { volume: 0.8 })
+                onComplete: () => this.sound.play("CARDPLACE", { volume: 0.8 })
             });
         });
-        return dealSequence.length * 130;
+        return CARD_DEAL_DELAY_MS + dealSequence.length * 130;
     }
 
     finishRound(playerHand, bankHand) {
@@ -309,7 +302,7 @@ export class BaccaratScene extends Phaser.Scene {
 
         this.roundActive = false;
         this.navbar.setStake(STAKE);
-        playSoundEffect(this, "chipTable");
+        this.sound.play("CHIPTABLE");
         this.createWagerChip();
         this.updateDisplay();
     }

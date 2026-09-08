@@ -1,11 +1,7 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
 import { Navbar } from "../ui/Navbar.js";
 import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
-import {
-    CHIP_SOUND_KEYS,
-    playSoundEffect,
-    preloadSoundEffects
-} from "../SoundEffects.js";
+
 
 export class RouletteScene extends Phaser.Scene {
     constructor() {
@@ -13,13 +9,17 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     preload() {
+        ["BALLHIT", "BALLROLL", "BALLHITR"].forEach((key) => {
+            if (!this.cache.audio.exists(key)) {
+                this.load.audio(key, `assets/sounds/${key}.WAV`);
+            }
+        });
         this.load.image("rouletteBackground", "assets/images/roulette.png");
         this.load.image("rouletteBall", "assets/images/roulette ball.png");
         this.load.spritesheet("rouletteChips", "assets/images/chips.png", {
             frameWidth: 30,
             frameHeight: 27
         });
-        preloadSoundEffects(this, CHIP_SOUND_KEYS);
         Navbar.preload(this);
         this.load.spritesheet(
             "rouletteWheelSpinSheet",
@@ -30,6 +30,8 @@ export class RouletteScene extends Phaser.Scene {
 
     create() {
         this.isSpinning = false;
+        this.spinSound = null;
+        this.events.once("shutdown", () => this.stopSpinSound());
         this.wager = 0;
         this.bets = [];
         this.wageredChips = [];
@@ -246,7 +248,6 @@ export class RouletteScene extends Phaser.Scene {
             if (!chip.getData?.("rouletteChip")) return;
             this.children.bringToTop(chip);
             chip.setScale(1.08);
-            playSoundEffect(this, "chipPickup");
         });
 
         this.input.on("drag", (pointer, chip, dragX, dragY) => {
@@ -313,7 +314,7 @@ export class RouletteScene extends Phaser.Scene {
         chip.setData({ betX: chip.x, betY: chip.y });
         this.bets.push(wager);
         this.wageredChips.push(chip);
-        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
+        this.sound.play(joinsStack ? "CHIPSTACK" : "CHIPTABLE");
         this.wager += wager.value;
         this.refreshChipStack(chip.getData("stackIndex"));
         this.showCurrentBet(wager);
@@ -331,7 +332,7 @@ export class RouletteScene extends Phaser.Scene {
             candidate !== chip
             && Phaser.Math.Distance.Between(candidate.x, candidate.y, chip.x, chip.y) < 24
         ));
-        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
+        this.sound.play(joinsStack ? "CHIPSTACK" : "CHIPTABLE");
         this.showCurrentBet(wager);
     }
 
@@ -575,7 +576,23 @@ export class RouletteScene extends Phaser.Scene {
         }
     }
 
+    playSpinSound(key, config = {}) {
+        this.stopSpinSound();
+        if (!this.isSpinning || !this.cache.audio.exists(key)) return;
+
+        this.spinSound = this.sound.add(key);
+        this.spinSound.play(config);
+    }
+
+    stopSpinSound() {
+        if (!this.spinSound) return;
+        this.spinSound.stop();
+        this.spinSound.destroy();
+        this.spinSound = null;
+    }
+
     hideWheelAndBall() {
+        this.stopSpinSound();
         if (!this.wheelLayer) return;
 
         this.wheelLayer.setVisible(false);
@@ -584,6 +601,7 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     animateRouletteBall(result) {
+        this.playSpinSound("BALLHIT");
         const centerX = this.wheel.x;
         const centerY = this.wheel.y;
         const entryAngle = -0.35;
@@ -605,6 +623,7 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     animateBallOrbit(result) {
+        this.playSpinSound("BALLROLL", { loop: true });
         const motion = { progress: 0 };
         const startAngle = -0.35;
 
@@ -628,6 +647,7 @@ export class RouletteScene extends Phaser.Scene {
     }
 
     animateBallBounce(result) {
+        this.playSpinSound("BALLHITR");
         const motion = { progress: 0 };
         const startAngle = -0.35 - Math.PI * 7;
         const landingAngle = (result / 36) * Math.PI * 2 - Math.PI / 2;
@@ -667,6 +687,7 @@ export class RouletteScene extends Phaser.Scene {
 
     finishSpin() {
         if (!this.isSpinning || !this.pendingResult) return;
+        this.stopSpinSound();
 
         this.wageredChips.forEach((chip) => chip.setVisible(true));
         const { result, color, resultColor } = this.pendingResult;
@@ -714,6 +735,7 @@ export class RouletteScene extends Phaser.Scene {
                 delay: index * 60,
                 ease: "Cubic.InOut",
                 onComplete: () => {
+                    if (won) this.sound.play("CHIPSTACK");
                     remaining--;
                     if (remaining === 0) this.resetBettingRound();
                 }

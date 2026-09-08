@@ -1,16 +1,19 @@
+// The shuffle clip lasts about 557 ms; leave a short pause before dealing.
+export const CARD_DEAL_DELAY_MS = 800;
+
 const SOUND_FILES = {
-    cardFlip: "CARDFLIP.WAV",
-    cardPlace: "CARDPLAC.WAV",
-    cardShuffle: "CARDSHUF.WAV",
-    chipPickup: "CHIPCHIP.WAV",
-    chipStack: "CHIPSTACK.WAV",
-    chipTable: "CHIPTABLE.WAV",
+    CARDFLIP: "CARDFLIP.WAV",
+    CARDPLACE: "CARDPLACE.WAV",
+    CARDSHUFFLE: "CARDSHUFFLE.WAV",
+    CHIPCHIP: "CHIPCHIP.WAV",
+    CHIPSTACK: "CHIPSTACK.WAV",
+    CHIPTABLE: "CHIPTABLE.WAV",
     dieFloor: "DIEFLOOR.WAV",
     dieOnDie: "DIEONDIE.WAV",
     dieSlide: "DIESLIDE.WAV",
-    dieWall: "DIEWALLB.WAV",
+    dieWall: "DIEWALLBOUNCE.WAV",
     ...Object.fromEntries(
-        Array.from({ length: 8 }, (_, index) => [`dieShake${index}`, `DIESHAK${index}.WAV`])
+        Array.from({ length: 8 }, (_, index) => [`dieShake${index}`, `DIESHAKE${index}.WAV`])
     )
 };
 
@@ -32,8 +35,8 @@ export function playRandomSoundEffect(scene, keys, config = {}) {
     playSoundEffect(scene, Phaser.Utils.Array.GetRandom(keys), config);
 }
 
-export const CARD_SOUND_KEYS = ["cardFlip", "cardPlace", "cardShuffle"];
-export const CHIP_SOUND_KEYS = ["chipPickup", "chipStack", "chipTable"];
+export const CARD_SOUND_KEYS = ["CARDFLIP", "CARDPLACE", "CARDSHUFFLE"];
+export const CHIP_SOUND_KEYS = ["CHIPCHIP", "CHIPSTACK", "CHIPTABLE"];
 export const DIE_SOUND_KEYS = [
     ...Array.from({ length: 8 }, (_, index) => `dieShake${index}`),
     "dieFloor",

@@ -1,13 +1,9 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
+import { CARD_DEAL_DELAY_MS } from "../SoundEffects.js";
 import { Navbar } from "../ui/Navbar.js";
 import { RulesPopup } from "../ui/RulesPopup.js";
 import { drawBevelButton, drawWin95Button } from "../ui/Win95.js";
-import {
-    CARD_SOUND_KEYS,
-    CHIP_SOUND_KEYS,
-    playSoundEffect,
-    preloadSoundEffects
-} from "../SoundEffects.js";
+
 
 const POKER_GAMES = [
     "Five-Card Draw",
@@ -44,8 +40,7 @@ export class PokerScene extends Phaser.Scene {
             frameWidth: 30,
             frameHeight: 27
         });
-        this.load.audio("pokerOpen", "assets/sounds/POKEROPE.WAV");
-        preloadSoundEffects(this, [...CARD_SOUND_KEYS, ...CHIP_SOUND_KEYS]);
+        this.load.audio("pokerOpen", "assets/sounds/POKEROPEN.WAV");
         Navbar.preload(this);
     }
 
@@ -462,7 +457,6 @@ export class PokerScene extends Phaser.Scene {
 
         chip.on("dragstart", () => {
             this.gameLayer.bringToTop(chip);
-            playSoundEffect(this, "chipPickup");
         });
         chip.on("drag", (pointer, dragX, dragY) => chip.setPosition(dragX, dragY));
         chip.on("dragend", () => {
@@ -498,7 +492,7 @@ export class PokerScene extends Phaser.Scene {
         this.wageredChips.push(chip);
         this.betPlaced += chip.getData("value");
         this.layoutWageredChips();
-        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
+        this.sound.play(joinsStack ? "CHIPSTACK" : "CHIPTABLE");
 
         const stack = this.bankrollChipStacks[chip.getData("stackIndex")];
         const nextChip = [...stack].reverse().find(
@@ -583,7 +577,7 @@ export class PokerScene extends Phaser.Scene {
         }
 
         if (!this.postAntes(this.betPlaced, stake)) return;
-        playSoundEffect(this, "cardShuffle");
+        this.sound.play("CARDSHUFFLE");
         this.roundActive = true;
         this.clearCards();
         this.navbar.setStake(STAKE);
@@ -619,7 +613,7 @@ export class PokerScene extends Phaser.Scene {
                 ? [false, false, true, true, true, true, false]
                 : false;
 
-        let delay = 0;
+        let delay = CARD_DEAL_DELAY_MS;
         const opponentStarts = [18, 214, 410];
         const opponentSpacing = cardsPerPlayer >= 7 ? 22 : 30;
         this.opponentHands.forEach((hand, index) => {
@@ -844,7 +838,9 @@ export class PokerScene extends Phaser.Scene {
     }
 
     addToPot(index, amount) {
-        if (amount > 0) playSoundEffect(this, "chipStack", { volume: 0.8 });
+        if (amount > 0) {
+            this.sound.play(this.currentPot > 0 ? "CHIPSTACK" : "CHIPTABLE", { volume: 0.8 });
+        }
         this.roundBets[index] += amount;
         this.handContributions[index] += amount;
         this.currentPot += amount;
@@ -947,7 +943,7 @@ export class PokerScene extends Phaser.Scene {
             sprite.setFrame(this.getCardFrame(sprite.getData("card")));
             sprite.setData("faceUp", true);
         });
-        if (cardsToReveal.length > 0) playSoundEffect(this, "cardFlip");
+        if (cardsToReveal.length > 0) this.sound.play("CARDFLIP");
     }
 
     updateSeatHighlights() {
@@ -1005,7 +1001,7 @@ export class PokerScene extends Phaser.Scene {
                 duration: 260,
                 delay: initialDelay + index * 90,
                 ease: "Cubic.Out",
-                onComplete: () => playSoundEffect(this, "cardPlace", { volume: 0.75 })
+                onComplete: () => this.sound.play("CARDPLACE", { volume: 0.75 })
             });
         });
         return initialDelay + cards.length * 90;
@@ -1022,7 +1018,7 @@ export class PokerScene extends Phaser.Scene {
                 revealedCard = true;
             }
         });
-        if (revealedCard) playSoundEffect(this, "cardFlip");
+        if (revealedCard) this.sound.play("CARDFLIP");
 
         const playerCards = this.activeGame === "Hold 'Em"
             ? [...this.playerHand, ...this.communityCards]

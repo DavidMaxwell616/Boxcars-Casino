@@ -1,13 +1,6 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
 import { Navbar } from "../ui/Navbar.js";
 import { drawBevelButton } from "../ui/Win95.js";
-import {
-    CHIP_SOUND_KEYS,
-    DIE_SOUND_KEYS,
-    playRandomSoundEffect,
-    playSoundEffect,
-    preloadSoundEffects
-} from "../SoundEffects.js";
 
 const TOTAL_PLAYERS = 4;
 const POINT_NUMBERS = [4, 5, 6, 8, 9, 10];
@@ -41,7 +34,6 @@ export class CrapsScene extends Phaser.Scene {
             frameWidth: 75,
             frameHeight: 75
         });
-        preloadSoundEffects(this, [...CHIP_SOUND_KEYS, ...DIE_SOUND_KEYS]);
         Navbar.preload(this);
     }
 
@@ -401,7 +393,6 @@ export class CrapsScene extends Phaser.Scene {
 
         chip.on("dragstart", () => {
             this.children.bringToTop(chip);
-            playSoundEffect(this, "chipPickup");
         });
         chip.on("drag", (pointer, dragX, dragY) => chip.setPosition(dragX, dragY));
         chip.on("dragend", () => {
@@ -560,7 +551,7 @@ export class CrapsScene extends Phaser.Scene {
         this.betPlaced += chip.getData("value");
         this.wageredChips.push(chip);
         this.layoutWageredChips();
-        playSoundEffect(this, joinsStack ? "chipStack" : "chipTable");
+        this.sound.play(joinsStack ? "CHIPSTACK" : "CHIPTABLE");
 
         const stack = this.bankrollChipStacks[chip.getData("stackIndex")];
         const nextTopChip = [...stack].reverse().find(
@@ -804,11 +795,9 @@ export class CrapsScene extends Phaser.Scene {
         this.roundActive = true;
         this.disableBankrollChips();
         this.updateTexts();
+        const shakeType = Phaser.Math.Between(0, 7);
         this.rollText.setText(`${this.playerNames[this.shooterIndex]} SHOOTING...`);
-        playRandomSoundEffect(
-            this,
-            Array.from({ length: 8 }, (_, index) => `dieShake${index}`)
-        );
+        this.sound.play("DIESHAKE" + shakeType);
 
         this.animateDice((dieOne, dieTwo) => this.resolveRoll(dieOne, dieTwo));
     }
@@ -820,7 +809,7 @@ export class CrapsScene extends Phaser.Scene {
             results[dieIndex] = value;
             stoppedDice++;
             if (stoppedDice < 2) return;
-            playSoundEffect(this, "dieOnDie", { volume: 0.75 });
+            this.sound.play("DIEONDIE", { volume: 0.75 });
             onComplete(results[0], results[1]);
         };
 
@@ -861,8 +850,8 @@ export class CrapsScene extends Phaser.Scene {
             duration: Phaser.Math.Between(600, 780),
             ease: "Cubic.In",
             onComplete: () => {
-                playSoundEffect(this, "dieWall");
-                playSoundEffect(this, "dieSlide", { volume: 0.55 });
+                this.sound.play("DIEWALLBOUNCE");
+                this.sound.play("DIESLIDE", { volume: 0.55 });
                 this.tweens.add({
                     targets: die,
                     x: stopX,
@@ -873,7 +862,7 @@ export class CrapsScene extends Phaser.Scene {
                     onComplete: () => {
                         frameTimer.remove(false);
                         die.setAngle(0).setFrame(finalFrame);
-                        playSoundEffect(this, "dieFloor");
+                        this.sound.play("DIEFLOOR");
                         onComplete(dieIndex, finalFrame - 7);
                     }
                 });

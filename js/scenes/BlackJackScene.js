@@ -1,13 +1,8 @@
 import { getBestChipStackDistribution } from "../GameFunctions.js";
+import { CARD_DEAL_DELAY_MS } from "../SoundEffects.js";
 import { Navbar } from "../ui/Navbar.js";
 import { RulesPopup } from "../ui/RulesPopup.js";
 import { drawWin95Button } from "../ui/Win95.js";
-import {
-    CARD_SOUND_KEYS,
-    CHIP_SOUND_KEYS,
-    playSoundEffect,
-    preloadSoundEffects
-} from "../SoundEffects.js";
 
 export class BlackjackScene extends Phaser.Scene {
     constructor() {
@@ -27,7 +22,6 @@ export class BlackjackScene extends Phaser.Scene {
             frameWidth: 30,
             frameHeight: 27
         });
-        preloadSoundEffects(this, [...CARD_SOUND_KEYS, ...CHIP_SOUND_KEYS]);
     }
 
     create() {
@@ -440,7 +434,7 @@ export class BlackjackScene extends Phaser.Scene {
                     this.returnWagerChipToStack(chip);
                 } else if (!this.roundActive && droppedInBetZone) {
                     if (!this.stackWagerChipIfOverlapping(chip)) {
-                        playSoundEffect(this, "chipTable");
+                        this.sound.play("CHIPTABLE");
                     }
                     chip.setData({ betX: chip.x, betY: chip.y });
                 } else {
@@ -459,7 +453,7 @@ export class BlackjackScene extends Phaser.Scene {
 
             this.betPlaced += chip.getData("value");
             if (!this.stackWagerChipIfOverlapping(chip)) {
-                playSoundEffect(this, "chipTable");
+                this.sound.play("CHIPTABLE");
             }
             this.wageredChips.push(chip);
             chip.setData({ betX: chip.x, betY: chip.y });
@@ -520,7 +514,7 @@ export class BlackjackScene extends Phaser.Scene {
             overlappingChip.x,
             Math.min(...stack.map((stackChip) => stackChip.y)) - 7
         );
-        playSoundEffect(this, "chipStack");
+        this.sound.play("CHIPSTACK");
         return true;
     }
 
@@ -531,7 +525,6 @@ export class BlackjackScene extends Phaser.Scene {
         this.wageredChips.splice(wagerIndex, 1);
         this.betPlaced = Math.max(0, this.betPlaced - chip.getData("value"));
         chip.setPosition(chip.getData("originalX"), chip.getData("originalY"));
-        playSoundEffect(this, "chipStack");
 
         const stack = this.bankrollChipStacks[chip.getData("stackIndex")];
         stack.forEach((stackChip) => {
@@ -628,9 +621,8 @@ export class BlackjackScene extends Phaser.Scene {
                     ease: newlyPlaced ? "Cubic.Out" : "Sine.Out",
                     onComplete: () => {
                         if (newlyPlaced) {
-                            playSoundEffect(
-                                this,
-                                chipIndex > 0 ? "chipStack" : "chipTable"
+                            this.sound.play(
+                                chipIndex > 0 ? "CHIPSTACK" : "CHIPTABLE"
                             );
                         }
                     }
@@ -668,7 +660,7 @@ export class BlackjackScene extends Phaser.Scene {
             return;
         }
 
-        playSoundEffect(this, "cardShuffle");
+        this.sound.play("CARDSHUFFLE");
 
         this.roundActive = true;
         this.playerTurn = false;
@@ -789,7 +781,7 @@ export class BlackjackScene extends Phaser.Scene {
             const isLastCard = index === dealOrder.length - 1;
             this.tweenCardFromDeck(
                 card,
-                index * stagger,
+                CARD_DEAL_DELAY_MS + index * stagger,
                 isLastCard ? onComplete : undefined,
                 deckX,
                 deckY
@@ -816,7 +808,7 @@ export class BlackjackScene extends Phaser.Scene {
             delay,
             ease: "Cubic.Out",
             onComplete: () => {
-                playSoundEffect(this, "cardPlace");
+                this.sound.play("CARDPLACE");
                 onComplete?.();
             }
         });
@@ -827,7 +819,7 @@ export class BlackjackScene extends Phaser.Scene {
         const dealerScore = this.evaluateHand(this.dealerHand);
 
         this.hideDealerHole = false;
-        playSoundEffect(this, "cardFlip");
+        this.sound.play("CARDFLIP");
         this.renderHands();
 
         if (playerScore.isBlackjack && dealerScore.isBlackjack) {
@@ -905,7 +897,7 @@ export class BlackjackScene extends Phaser.Scene {
             });
             return false;
         }
-        if (addedChips.length > 0) playSoundEffect(this, "chipStack");
+        if (addedChips.length > 0) this.sound.play("CHIPSTACK");
         return true;
     }
 
@@ -923,7 +915,7 @@ export class BlackjackScene extends Phaser.Scene {
         const hand = this.playerHands[index];
         this.dealCard(hand);
         this.playerHand = hand;
-        playSoundEffect(this, "cardPlace");
+        this.sound.play("CARDPLACE");
         this.renderHands();
         this.updateTexts();
 
@@ -936,12 +928,12 @@ export class BlackjackScene extends Phaser.Scene {
 
         if (this.evaluateHand(hand).isBust) {
             this.hideDealerHole = false;
-            playSoundEffect(this, "cardFlip");
+            this.sound.play("CARDFLIP");
             this.renderHands();
             this.endRound("Bust", "loss");
         } else {
             this.hideDealerHole = false;
-            playSoundEffect(this, "cardFlip");
+            this.sound.play("CARDFLIP");
             this.renderHands();
             this.updateTexts();
             this.dealerPlayStep();
@@ -962,7 +954,7 @@ export class BlackjackScene extends Phaser.Scene {
         }
         this.dealCard(firstHand);
         this.dealCard(secondHand);
-        playSoundEffect(this, "cardPlace");
+        this.sound.play("CARDPLACE");
 
         this.playerHands.splice(index, 1, firstHand, secondHand);
         this.handBets.splice(index, 1, this.betPlaced, this.betPlaced);
@@ -1018,7 +1010,7 @@ export class BlackjackScene extends Phaser.Scene {
     finishPlayerHands() {
         this.playerTurn = false;
         this.hideDealerHole = false;
-        playSoundEffect(this, "cardFlip");
+        this.sound.play("CARDFLIP");
         this.renderHands();
         this.updateTexts();
         if (this.handStates.every((state) => state === "bust")) {
@@ -1055,7 +1047,7 @@ export class BlackjackScene extends Phaser.Scene {
         this.tweenCardFromDeck(sprite, 0, () => {
             if (this.evaluateHand(this.playerHand).isBust) {
                 this.hideDealerHole = false;
-                playSoundEffect(this, "cardFlip");
+                this.sound.play("CARDFLIP");
                 this.renderHands();
                 this.endRound("Bust", "loss");
             } else {
@@ -1075,7 +1067,7 @@ export class BlackjackScene extends Phaser.Scene {
         }
         this.playerTurn = false;
         this.hideDealerHole = false;
-        playSoundEffect(this, "cardFlip");
+        this.sound.play("CARDFLIP");
         this.renderHands();
         this.updateTexts();
         this.dealerPlayStep();
@@ -1087,7 +1079,7 @@ export class BlackjackScene extends Phaser.Scene {
         if (dealerScore.total < 17) {
             this.time.delayedCall(450, () => {
                 this.dealCard(this.dealerHand);
-                playSoundEffect(this, "cardPlace");
+                this.sound.play("CARDPLACE");
                 this.renderHands();
                 this.updateTexts();
                 this.dealerPlayStep();

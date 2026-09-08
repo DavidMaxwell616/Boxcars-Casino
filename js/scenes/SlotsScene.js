@@ -11,7 +11,7 @@ export class SlotsScene extends Phaser.Scene {
         this.load.image("slotSymbols", "assets/images/slots images.png");
         this.load.audio("slotReelStop", "assets/sounds/REELSTOP.WAV");
         this.load.audio("slotBell", "assets/sounds/SLOTBELL.WAV");
-        this.load.audio("slotSiren", "assets/sounds/SLOTSIRE.WAV");
+        this.load.audio("slotSiren", "assets/sounds/SLOTSIREN.WAV");
         Navbar.preload(this);
     }
 
@@ -79,7 +79,8 @@ export class SlotsScene extends Phaser.Scene {
 
     createReels() {
         const reelX = [169, 312, 455];
-        const rowY = [251, 344, 437];
+        // Keep the three visible rows first, followed by buffers outside the mask.
+        const rowY = [251, 344, 437, 158, 530];
 
         const maskShape = this.make.graphics({ add: false });
         maskShape.fillStyle(0xffffff);
@@ -135,8 +136,6 @@ export class SlotsScene extends Phaser.Scene {
 
         this.reels.forEach((reel, reelIndex) => {
             this.tweenReel(reel, reelIndex, () => {
-                this.randomizeReel(reel);
-                reel.forEach((symbol) => symbol.y = symbol.getData("homeY"));
                 this.playSound("slotReelStop");
                 if (reelIndex === this.reels.length - 1) this.finishSpin();
             });
@@ -146,7 +145,10 @@ export class SlotsScene extends Phaser.Scene {
     tweenReel(reel, reelIndex, onComplete) {
         const symbolSpacing = 93;
         const reelHeight = symbolSpacing * reel.length;
-        const rotations = 8 + reelIndex * 3;
+        const wrapY = 158;
+        const rotations = (3 + reelIndex) * 2;
+        const duration = 3600 + reelIndex * 900;
+        const brakeFraction = 180 / duration;
         const motion = { offset: 0 };
 
         reel.forEach((symbol) => symbol.setData("spinCycle", 0));
@@ -154,32 +156,30 @@ export class SlotsScene extends Phaser.Scene {
         this.tweens.add({
             targets: motion,
             offset: reelHeight * rotations,
-            duration: 900 + reelIndex * 350,
-            ease: "Cubic.Out",
+            duration,
+            // Hold a steady speed, then brake during only the final 180 ms.
+            ease: (progress) => {
+                const braking = Math.max(0, progress - (1 - brakeFraction));
+                return (progress - braking * braking / (2 * brakeFraction))
+                    / (1 - brakeFraction / 2);
+            },
             onUpdate: () => {
-                reel.forEach((symbol, rowIndex) => {
-                    const travel = rowIndex * symbolSpacing + motion.offset;
+                reel.forEach((symbol) => {
+                    const travel = symbol.getData("homeY") - wrapY + motion.offset;
                     const cycle = Math.floor(travel / reelHeight);
 
                     if (cycle !== symbol.getData("spinCycle")) {
                         const frame = this.randomSymbol();
-                        symbol.setFrame(frame).setData({
+                        symbol.setFrame(frame).setDisplaySize(108, 82).setData({
                             symbol: frame,
                             spinCycle: cycle
                         });
                     }
 
-                    symbol.y = reel[0].getData("homeY") + (travel % reelHeight);
+                    symbol.y = wrapY + (travel % reelHeight);
                 });
             },
             onComplete
-        });
-    }
-
-    randomizeReel(reel) {
-        reel.forEach((symbol) => {
-            const frame = this.randomSymbol();
-            symbol.setFrame(frame).setData("symbol", frame);
         });
     }
 

@@ -1,12 +1,22 @@
 
-import { menuButtons } from "../config.js";
+import { SOUNDS, menuButtons } from "../config.js";
 import { Navbar } from "../ui/Navbar.js";
+const soundFiles = [];
 
 export default class HubScene extends Phaser.Scene {
-    constructor() { super("Hub"); }
+    constructor() {
+        super("Hub");
+
+
+    }
     preload() {
         this.load.image('menu', 'assets/images/menu.png');
         this.load.image('bank', 'assets/images/bank.png');
+        SOUNDS.forEach((sound) => {
+            const path = './assets/sounds/' + sound + '.WAV';
+            this.load.audio(sound, path);
+            soundFiles.push(sound);
+        });
         Navbar.preload(this);
     }
 
