@@ -1291,7 +1291,10 @@ export class BlackjackScene extends Phaser.Scene {
             });
             stack.push(chip);
             this.chipSprites.push(chip);
-            transfers.push({ chip, x: stackX, y: targetY, alpha: 1 });
+            transfers.push({
+                chip, x: stackX, y: targetY, alpha: 1,
+                sound: chipsAtBankroll.length > 0 ? "CHIPCHIP" : "CHIPTABLE"
+            });
         });
 
         return transfers;
@@ -1314,6 +1317,7 @@ export class BlackjackScene extends Phaser.Scene {
                 delay: index * 70,
                 ease: "Cubic.InOut",
                 onComplete: () => {
+                    if (transfer.sound) this.sound.play(transfer.sound);
                     remaining--;
                     if (remaining === 0) onComplete();
                 }

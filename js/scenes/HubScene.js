@@ -21,17 +21,6 @@ export default class HubScene extends Phaser.Scene {
     }
 
     create() {
-        if (TEST) {
-            BANK_BALANCE = 50000;
-            STAKE = 1000;
-            GAMBLER_NAME = "Longshot Louie";
-        }
-        else {
-            BANK_BALANCE = 0;
-            STAKE = 0;
-            GAMBLER_NAME = "";
-        }
-
         this.navbar = new Navbar(this);
         this.menu = this.add.image(0, this.navbar.height, 'menu').setOrigin(0, 0);
 
@@ -53,16 +42,30 @@ export default class HubScene extends Phaser.Scene {
             .setDepth(1000)
             .setVisible(false);
 
-        menuButtons.slice(3).forEach(item => {
+        // Bounds of the button faces in menu.png, before the navbar offset.
+        const buttonBounds = [
+            [6, 3, 90, 26],
+            [62, 240, 156, 30],
+            [324, 240, 156, 30],
+            [585, 240, 156, 30],
+            [62, 486, 156, 30],
+            [324, 486, 156, 30],
+            [585, 486, 156, 30]
+        ];
+        menuButtons.slice(3).forEach((item, index) => {
             const button = this.add.text(item.x, item.y, item.text, {
                 fontSize: '18px',
                 fontFamily: 'Tahoma',
                 color: '#000000',
             })
-                .setPadding(10)
+                .setPadding(10);
+
+            const [x, y, width, height] = buttonBounds[index];
+            const hitZone = this.add.zone(x, this.navbar.height + y, width, height)
+                .setOrigin(0, 0)
                 .setInteractive({ useHandCursor: true });
 
-            button.on('pointerdown', () => {
+            hitZone.on('pointerdown', () => {
                 if (item.text !== "BANK" && STAKE <= 0) {
                     this.showNoMoneyMessage();
                     return;

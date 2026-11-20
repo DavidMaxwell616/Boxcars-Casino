@@ -254,6 +254,7 @@ export class BankScene extends Phaser.Scene {
         ).setOrigin(0, 0);
 
         this.bankDepositInput.node.type = "number";
+        this.bankDepositInput.node.inputMode = "decimal";
         this.bankDepositInput.node.min = "0";
         this.bankDepositInput.node.step = "0.01";
         this.bankDepositInput.node.value = String(new_bank_balance);
@@ -403,6 +404,7 @@ export class BankScene extends Phaser.Scene {
         ).setOrigin(0, 0);
 
         this.changeStakeInput.node.type = "number";
+        this.changeStakeInput.node.inputMode = "decimal";
         this.changeStakeInput.node.min = "0";
         this.changeStakeInput.node.max = String(BANK_BALANCE);
         this.changeStakeInput.node.step = "0.01";

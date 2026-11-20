@@ -14,6 +14,11 @@ const config = {
     parent: "game",
     width: 800,
     height: 600,
+    // Keep scene coordinates and DOM forms aligned while fitting any viewport.
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    },
     dom: {
         createContainer: true
     },

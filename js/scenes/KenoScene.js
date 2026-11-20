@@ -287,7 +287,19 @@ export class KenoScene extends Phaser.Scene {
             fontStyle: "bold",
             color: "#000000",
             padding: { x: 12, y: 4 }
-        }).setOrigin(0.5).setDepth(20).setInteractive({ useHandCursor: true });
+        }).setOrigin(0.5).setDepth(20);
+        const width = 100 * this.modalScale;
+        const height = 20 * this.modalScale;
+        button.setInteractive({
+            hitArea: new Phaser.Geom.Rectangle(
+                button.displayOriginX - width / 2,
+                button.displayOriginY - height / 2,
+                width,
+                height
+            ),
+            hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+            useHandCursor: true
+        });
         button.on("pointerdown", callback);
         return button;
     }
